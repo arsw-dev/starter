@@ -1,0 +1,23 @@
+# Front ends, back ends, and the shared code they're built from
+packages:
+  - apps/*
+  - services/*
+  - packages/*
+
+# Supply chain
+minimumReleaseAge: 4320 # 3 days: most malicious releases are pulled by then
+trustPolicy: no-downgrade # a package that published with provenance can't stop
+blockExoticSubdeps: true # dependencies of dependencies come from the registry, never git or tarballs
+strictDepBuilds: true # install scripts run only if allowBuilds approves them
+
+# One exact version of each dependency, from a catalog
+catalogMode: strict
+catalogPrune: true # drops entries nothing uses
+savePrefix: '' # no ^
+
+engineStrict: true # install fails on a Node older than package.json's engines
+
+catalogs:
+  # Checks, tests and the dev server
+  tooling:
+    vite-plus: 1.2.0
