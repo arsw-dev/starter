@@ -1,2 +1,4 @@
+# The Workers' generated types first, so the check sees the current bindings
+pnpm --recursive --if-present run types
 vp check
 vp test

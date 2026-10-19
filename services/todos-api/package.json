@@ -1,0 +1,19 @@
+{
+  "name": "@arsw/todos-api",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#/*": "./src/*"
+  },
+  "scripts": {
+    "prepare": "wrangler types",
+    "dev": "wrangler dev",
+    "types": "wrangler types"
+  },
+  "devDependencies": {
+    "@arsw/tsconfig": "workspace:*",
+    "@cloudflare/vitest-plugin": "catalog:tooling",
+    "vite-plus": "catalog:tooling",
+    "wrangler": "catalog:tooling"
+  }
+}
