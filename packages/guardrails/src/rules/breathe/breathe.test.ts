@@ -71,7 +71,7 @@ ruleTester.run('breathe', breathe, {
         },
       ],
     },
-    // Platform allows this; here a one-line if needs a blank line after it
+    // A one-line if needs a blank line after it too, unless another follows
     {
       code: 'const f = (a) => {\n  if (!a) return 0;\n  const b = a + 1;\n\n  return b;\n};',
       output:
