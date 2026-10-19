@@ -6,8 +6,10 @@
     "prepare": "vp config --no-agent"
   },
   "devDependencies": {
+    "@arsw/guardrails": "workspace:*",
     "@arsw/tsconfig": "workspace:*",
     "@types/node": "catalog:tooling",
+    "typescript": "catalog:tooling",
     "vite-plus": "catalog:tooling"
   },
   "engines": {

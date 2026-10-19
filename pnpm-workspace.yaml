@@ -21,4 +21,6 @@ catalogs:
   # The toolchain and the runtimes' types
   tooling:
     '@types/node': 26.6.5
+    oxlint: 1.88.0
+    typescript: 7.1.0-dev.20261016.1 # the editor's, until 7.1 ships
     vite-plus: 1.2.0

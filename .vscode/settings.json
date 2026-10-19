@@ -21,5 +21,8 @@
     "source.fixAll.oxc": "explicit"
   },
   "oxc.disableNestedConfig": true,
-  "oxc.fmt.disableNestedConfig": true
+  "oxc.fmt.disableNestedConfig": true,
+  "js/ts.experimental.useTsgo": true,
+  "js/ts.tsdk.path": "node_modules/typescript",
+  "js/ts.preferences.autoImportSpecifierExcludeRegexes": ["^\\.\\./"]
 }

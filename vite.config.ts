@@ -42,16 +42,28 @@ export default defineConfig({
       respectEslintDisableDirectives: false,
     },
     rules: {
+      'arsw/object-wrap': 'error',
       // Exports: named, listed once, at the end of the file
       'import/no-default-export': 'error',
       'import/exports-last': 'error',
       'import/group-exports': 'error',
       // Imports: name the .ts file, never climb out with ../
       // never import only for side effects
-      'import/extensions': ['error', 'always', { ignorePackages: true }],
+      'import/extensions': [
+        'error',
+        'always',
+        {
+          ignorePackages: true,
+        },
+      ],
       'import/no-relative-parent-imports': 'error',
       'import/no-unassigned-import': 'error',
-      'unicorn/filename-case': ['error', { case: 'kebabCase' }],
+      'unicorn/filename-case': [
+        'error',
+        {
+          case: 'kebabCase',
+        },
+      ],
       // Types
       'typescript/consistent-type-definitions': ['error', 'type'],
       'typescript/consistent-type-imports': 'error',
@@ -67,10 +79,14 @@ export default defineConfig({
     },
     overrides: [
       {
-        // Tools load their config from its default export
-        files: ['**/*.config.ts'],
-        rules: { 'import/no-default-export': 'off' },
+        // Tools load these from their default export: config files, and
+        // entry points (oxlint a plugin, Cloudflare a Worker)
+        files: ['**/*.config.ts', '**/main.ts'],
+        rules: {
+          'import/no-default-export': 'off',
+        },
       },
     ],
+    jsPlugins: ['@arsw/guardrails/plugin'],
   },
 });

@@ -13,6 +13,10 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    # A 7.1 nightly, for the editor's import completions, held until 7.1
+    # ships; then the stable 7.1 replaces it and this goes
+    ignore:
+      - dependency-name: typescript
   # The SHA pins in .github/workflows
   - package-ecosystem: github-actions
     directory: /
