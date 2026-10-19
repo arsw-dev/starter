@@ -1,5 +1,5 @@
-export default {
-  fetch() {
-    return new Response('hello world!');
-  },
-} satisfies ExportedHandler<Env>;
+import { createApp } from './app.ts';
+
+const app = createApp();
+
+export default app;

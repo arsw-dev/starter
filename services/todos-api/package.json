@@ -10,6 +10,11 @@
     "dev": "wrangler dev",
     "types": "wrangler types"
   },
+  "dependencies": {
+    "@hono/zod-openapi": "catalog:api",
+    "hono": "catalog:api",
+    "zod": "catalog:shared"
+  },
   "devDependencies": {
     "@arsw/tsconfig": "workspace:*",
     "@cloudflare/vitest-plugin": "catalog:tooling",
