@@ -1,0 +1,22 @@
+version: 2
+
+# Weekly, each update 3 days after its release, so it passes minimumReleaseAge
+updates:
+  # The catalogs in pnpm-workspace.yaml. Minor and patch updates come
+  # together; each major gets its own PR, to read on its own
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 3
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+  # The SHA pins in .github/workflows
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 3

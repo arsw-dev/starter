@@ -1,0 +1,7 @@
+awk '$3 == "refs/heads/main" { main = 1 }
+  END {
+    if (main) {
+      print "Not to main: push a branch and open a pull request" > "/dev/stderr"
+      exit 1
+    }
+  }'

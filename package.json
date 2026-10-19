@@ -2,11 +2,15 @@
   "name": "starter",
   "private": true,
   "type": "module",
+  "scripts": {
+    "prepare": "vp config --no-agent"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:tooling",
+    "vite-plus": "catalog:tooling"
+  },
   "engines": {
     "node": ">=26"
   },
-  "packageManager": "pnpm@11.28.3",
-  "devDependencies": {
-    "vite-plus": "catalog:tooling"
-  }
+  "packageManager": "pnpm@11.28.3"
 }
