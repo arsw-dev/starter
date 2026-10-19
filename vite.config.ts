@@ -16,6 +16,7 @@ export default defineConfig({
         'style',
         'unknown',
       ],
+      internalPattern: ['@arsw/'],
       newlinesBetween: true,
     },
   },

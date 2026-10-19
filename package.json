@@ -6,6 +6,7 @@
     "prepare": "vp config --no-agent"
   },
   "devDependencies": {
+    "@arsw/tsconfig": "workspace:*",
     "@types/node": "catalog:tooling",
     "vite-plus": "catalog:tooling"
   },
