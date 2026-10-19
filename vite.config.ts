@@ -61,6 +61,7 @@ export default defineConfig({
         'always',
         {
           ignorePackages: true,
+          checkTypeImports: true,
         },
       ],
       'import/no-relative-parent-imports': 'error',
@@ -72,6 +73,7 @@ export default defineConfig({
           case: 'kebabCase',
         },
       ],
+      'import/consistent-type-specifier-style': ['error', 'prefer-top-level'],
       // Functions: arrows only
       'arsw/no-function': 'error',
       // Types
