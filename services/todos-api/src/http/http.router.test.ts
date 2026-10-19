@@ -1,149 +1,84 @@
-import { createRoute, z } from '@hono/zod-openapi';
+import { z } from '@hono/zod-openapi';
 import { expect, it } from 'vite-plus/test';
 
-import { createRouter } from './http.router.ts';
+import { toIssues } from './http.router.ts';
 
-// One route with every part a request can fail: its path, its query and its
-// body
-const route = createRoute({
-  method: 'post',
-  path: '/things/{id}',
-  request: {
-    params: z.object({
-      id: z.string().regex(/^\d+$/),
-    }),
-    query: z.object({
-      limit: z.coerce.number().int().positive().optional(),
-    }),
-    body: {
-      content: {
-        'application/json': {
-          schema: z.object({
-            title: z.string().min(1),
-            tags: z.array(z.string().min(1)).optional(),
-          }),
-        },
-      },
-    },
-  },
-  responses: {
-    200: {
-      description: 'Accepted',
-      content: {
-        'application/json': {
-          schema: z.object({
-            ok: z.boolean(),
-          }),
-        },
-      },
-    },
-  },
+// The zod error a schema gives for the input it's handed
+const errorFor = (schema: z.ZodType, input: unknown) => {
+  const result = schema.safeParse(input);
+
+  if (result.success) throw new Error('Expected the input to fail');
+
+  return result.error;
+};
+
+const title = z.object({
+  title: z.string().min(1),
 });
 
-const router = createRouter().openapi(route, (ctx) =>
-  ctx.json(
+it.each([
+  ['json', 'body'],
+  ['form', 'body'],
+  ['query', 'query'],
+  ['param', 'path'],
+  ['header', 'header'],
+  ['cookie', 'cookie'],
+] as const)('names a %s failure %s, as the document does', (target, name) => {
+  const [issue] = toIssues(
+    target,
+    errorFor(title, {
+      title: '',
+    }),
+  );
+
+  expect(issue?.in).toBe(name);
+});
+
+it("keeps the path and zod's message, and nothing else of zod's", () => {
+  const error = errorFor(title, {
+    title: '',
+  });
+
+  expect(toIssues('json', error)).toEqual([
     {
-      ok: true,
+      in: 'body',
+      path: 'title',
+      message: error.issues[0]?.message,
     },
-    200,
-  ),
-);
-
-const post = (path: string, body: unknown) =>
-  router.request(path, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
-
-it('lets a valid request through to its handler', async () => {
-  const response = await post('/things/1?limit=5', {
-    title: 'A thing',
-  });
-
-  expect(response.status).toBe(200);
+  ]);
 });
 
-it('answers an invalid body with a 422, each issue by where it is', async () => {
-  const response = await post('/things/1', {
+it('joins a nested path with dots', () => {
+  const tags = z.object({
+    tags: z.array(z.string().min(1)),
+  });
+  const error = errorFor(tags, {
+    tags: ['a', ''],
+  });
+
+  expect(toIssues('json', error).map((issue) => issue.path)).toEqual([
+    'tags.1',
+  ]);
+});
+
+it('gives a problem with the whole input an empty path', () => {
+  const error = errorFor(title, 'not an object');
+
+  expect(toIssues('json', error).map((issue) => issue.path)).toEqual(['']);
+});
+
+it('reports every problem, in order', () => {
+  const two = z.object({
+    title: z.string().min(1),
+    done: z.boolean(),
+  });
+  const error = errorFor(two, {
     title: '',
+    done: 'yes',
   });
 
-  expect(response.status).toBe(422);
-  expect(await response.json()).toEqual({
-    message: 'Invalid Request',
-    issues: [
-      {
-        in: 'body',
-        path: 'title',
-        message: expect.any(String),
-      },
-    ],
-  });
-});
-
-it('joins a nested path with dots', async () => {
-  const response = await post('/things/1', {
-    title: 'A thing',
-    tags: [''],
-  });
-
-  expect(await response.json()).toMatchObject({
-    issues: [
-      {
-        in: 'body',
-        path: 'tags.0',
-      },
-    ],
-  });
-});
-
-it('names the query and the path the way the document does', async () => {
-  const query = await post('/things/1?limit=-1', {
-    title: 'A thing',
-  });
-  const path = await post('/things/abc', {
-    title: 'A thing',
-  });
-
-  expect(await query.json()).toMatchObject({
-    issues: [
-      {
-        in: 'query',
-        path: 'limit',
-      },
-    ],
-  });
-  expect(await path.json()).toMatchObject({
-    issues: [
-      {
-        in: 'path',
-        path: 'id',
-      },
-    ],
-  });
-});
-
-// Each part is checked in turn, and the first to fail answers
-it('reports only the first part that fails', async () => {
-  const response = await post('/things/1?limit=-1', {
-    title: '',
-  });
-  const { issues } = await response.json<{
-    issues: {
-      in: string;
-    }[];
-  }>();
-
-  expect(issues.map((issue) => issue.in)).toEqual(['query']);
-});
-
-it('treats a trailing slash as the same path', async () => {
-  const response = await createRouter()
-    .get('/things', (ctx) => ctx.text('ok'))
-    .request('/things/');
-
-  expect(response.status).toBe(200);
+  expect(toIssues('json', error).map((issue) => issue.path)).toEqual([
+    'title',
+    'done',
+  ]);
 });

@@ -1,7 +1,7 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
 
 import type { AppEnv } from './http.types.ts';
-import type { OpenAPIHonoOptions } from '@hono/zod-openapi';
+import type { OpenAPIHonoOptions, z } from '@hono/zod-openapi';
 
 // Where an input was, in OpenAPI's words, as the document names it
 const IN = {
@@ -13,22 +13,31 @@ const IN = {
   cookie: 'cookie',
 } as const;
 
+type Issue = {
+  in: (typeof IN)[keyof typeof IN];
+  path: string;
+  message: string;
+};
+
+// What a failed validation tells the client: each problem, where it was and
+// what's wrong, without zod's internals
+const toIssues = (target: keyof typeof IN, error: z.ZodError): Issue[] =>
+  error.issues.map((issue) => ({
+    in: IN[target],
+    path: issue.path.map(String).join('.'),
+    message: issue.message,
+  }));
+
 const defaultHook: OpenAPIHonoOptions<AppEnv>['defaultHook'] = (
   result,
   ctx,
 ) => {
   if (result.success) return undefined;
 
-  const issues = result.error.issues.map((issue) => ({
-    in: IN[result.target],
-    path: issue.path.map(String).join('.'),
-    message: issue.message,
-  }));
-
   return ctx.json(
     {
       message: 'Invalid Request',
-      issues,
+      issues: toIssues(result.target, result.error),
     },
     422,
   );
@@ -40,4 +49,4 @@ const createRouter = () =>
     defaultHook,
   });
 
-export { createRouter };
+export { createRouter, toIssues };
