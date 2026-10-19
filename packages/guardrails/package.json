@@ -1,0 +1,16 @@
+{
+  "name": "@arsw/guardrails",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#/*": "./src/*"
+  },
+  "exports": {
+    "./plugin": "./src/main.ts"
+  },
+  "devDependencies": {
+    "@arsw/tsconfig": "workspace:*",
+    "@types/node": "catalog:tooling",
+    "oxlint": "catalog:tooling"
+  }
+}

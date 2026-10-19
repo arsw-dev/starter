@@ -1,0 +1,4 @@
+{
+  "extends": "@arsw/tsconfig/node",
+  "include": ["src"]
+}

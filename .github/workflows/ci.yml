@@ -34,6 +34,13 @@ jobs:
         with:
           node-version-file: .nvmrc
       - name: Install
+        id: install
         run: pnpm install --frozen-lockfile
+      # Each check runs even when the one before it failed, so one run shows
+      # every problem
       - name: Check
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm exec vp check
+      - name: Test
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm exec vp test
