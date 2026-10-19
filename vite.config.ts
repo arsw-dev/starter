@@ -42,11 +42,16 @@ export default defineConfig({
       respectEslintDisableDirectives: false,
     },
     rules: {
+      // Layout the formatter leaves alone: braces once there's an else, blank
+      // lines between steps, objects and type literals never on one line
+      'arsw/braced-else': 'error',
+      'arsw/breathe': 'error',
       'arsw/object-wrap': 'error',
       // Exports: named, listed once, at the end of the file
       'import/no-default-export': 'error',
       'import/exports-last': 'error',
       'import/group-exports': 'error',
+      'arsw/no-inline-export': 'error',
       // Imports: name the .ts file, never climb out with ../
       // never import only for side effects
       'import/extensions': [
@@ -57,6 +62,7 @@ export default defineConfig({
         },
       ],
       'import/no-relative-parent-imports': 'error',
+      'arsw/import-path': 'error',
       'import/no-unassigned-import': 'error',
       'unicorn/filename-case': [
         'error',
@@ -64,6 +70,8 @@ export default defineConfig({
           case: 'kebabCase',
         },
       ],
+      // Functions: arrows only
+      'arsw/no-function': 'error',
       // Types
       'typescript/consistent-type-definitions': ['error', 'type'],
       'typescript/consistent-type-imports': 'error',
@@ -72,9 +80,11 @@ export default defineConfig({
       // and never passed where a callback's result is ignored
       'typescript/no-floating-promises': 'error',
       'typescript/no-misused-promises': 'error',
-      // No blanket escapes: no @ts-ignore, no rule-less disable comments
+      // No blanket escapes: no @ts-ignore, and a disable comment names its
+      // rules and says why
       'typescript/ban-ts-comment': 'error',
       'unicorn/no-abusive-eslint-disable': 'error',
+      'arsw/disable-reason': 'error',
       'node/no-process-env': 'error',
     },
     overrides: [
