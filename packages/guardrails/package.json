@@ -11,6 +11,7 @@
   "devDependencies": {
     "@arsw/tsconfig": "workspace:*",
     "@types/node": "catalog:tooling",
-    "oxlint": "catalog:tooling"
+    "oxlint": "catalog:tooling",
+    "vite-plus": "catalog:tooling"
   }
 }
