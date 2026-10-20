@@ -3,14 +3,14 @@ import { SQLiteSyncDialect, getTableConfig } from 'drizzle-orm/sqlite-core';
 import { describe, expect, expectTypeOf, it } from 'vite-plus/test';
 
 import { createDefineModel } from './model.factory.ts';
-import { field } from './model.fields.ts';
+import { enumOf, field } from './model.fields.ts';
 
 import type { z } from '@hono/zod-openapi';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
 const defineModel = createDefineModel();
 
-const PRIORITIES = ['low', 'medium', 'high'] as const;
+const PRIORITIES = enumOf(['low', 'medium', 'high']);
 
 const EVERYONE = ['read', 'create', 'update'] as const;
 

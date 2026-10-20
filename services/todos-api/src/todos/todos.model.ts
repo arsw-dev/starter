@@ -1,7 +1,7 @@
 import { defineModel } from '#/db/db.ts';
-import { field } from '#/model/model.fields.ts';
+import { enumOf, field } from '#/model/model.fields.ts';
 
-const PRIORITIES = ['low', 'medium', 'high'] as const;
+const PRIORITIES = enumOf(['low', 'medium', 'high']);
 
 const EVERYONE = ['read', 'create', 'update'] as const;
 
