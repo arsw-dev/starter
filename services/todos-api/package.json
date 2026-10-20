@@ -8,16 +8,21 @@
   "scripts": {
     "prepare": "wrangler types",
     "dev": "wrangler dev",
-    "types": "wrangler types"
+    "types": "wrangler types",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "wrangler d1 migrations apply todos --local"
   },
   "dependencies": {
     "@hono/zod-openapi": "catalog:api",
+    "drizzle-orm": "catalog:api",
     "hono": "catalog:api",
     "zod": "catalog:shared"
   },
   "devDependencies": {
     "@arsw/tsconfig": "workspace:*",
     "@cloudflare/vitest-plugin": "catalog:tooling",
+    "@types/node": "catalog:tooling",
+    "drizzle-kit": "catalog:tooling",
     "vite-plus": "catalog:tooling",
     "wrangler": "catalog:tooling"
   }

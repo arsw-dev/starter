@@ -4,6 +4,6 @@
     "module": "preserve",
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
-    "types": []
+    "types": ["node"]
   }
 }

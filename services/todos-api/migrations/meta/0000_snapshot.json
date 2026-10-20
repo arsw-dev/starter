@@ -1,0 +1,152 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "6e933579-7890-4f6b-8bf5-4281270804eb",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "tables": {
+    "todos": {
+      "name": "todos",
+      "columns": {
+        "pk": {
+          "name": "pk",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "done": {
+          "name": "done",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "priority": {
+          "name": "priority",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'medium'"
+        },
+        "estimate": {
+          "name": "estimate",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "due_date": {
+          "name": "due_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        }
+      },
+      "indexes": {
+        "todos_id_unique": {
+          "name": "todos_id_unique",
+          "columns": [
+            "id"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "id_is_uuid": {
+          "name": "id_is_uuid",
+          "value": "typeof(\"id\") = 'text' AND \"id\" GLOB '????????-????-4???-[89ab]???-????????????' AND NOT \"id\" GLOB '*[^0-9a-f-]*'"
+        },
+        "title_is_text": {
+          "name": "title_is_text",
+          "value": "typeof(\"title\") = 'text'"
+        },
+        "title_is_trimmed": {
+          "name": "title_is_trimmed",
+          "value": "\"title\" = trim(\"title\", char(9, 10, 11, 12, 13, 32, 160, 5760, 8192, 8193, 8194, 8195, 8196, 8197, 8198, 8199, 8200, 8201, 8202, 8232, 8233, 8239, 8287, 12288, 65279))"
+        },
+        "title_not_blank": {
+          "name": "title_not_blank",
+          "value": "length(\"title\") > 0"
+        },
+        "title_max_length": {
+          "name": "title_max_length",
+          "value": "length(\"title\") <= 200"
+        },
+        "done_is_boolean": {
+          "name": "done_is_boolean",
+          "value": "\"done\" IN (0, 1)"
+        },
+        "priority_is_in_enum": {
+          "name": "priority_is_in_enum",
+          "value": "\"priority\" IN ('low', 'medium', 'high')"
+        },
+        "estimate_is_integer": {
+          "name": "estimate_is_integer",
+          "value": "\"estimate\" IS NULL OR (typeof(\"estimate\") = 'integer' AND \"estimate\" BETWEEN -9007199254740991 AND 9007199254740991)"
+        },
+        "estimate_at_least": {
+          "name": "estimate_at_least",
+          "value": "\"estimate\" IS NULL OR (\"estimate\" >= 1)"
+        },
+        "due_date_is_date": {
+          "name": "due_date_is_date",
+          "value": "\"due_date\" IS NULL OR (date(\"due_date\") IS \"due_date\")"
+        },
+        "created_at_is_timestamp": {
+          "name": "created_at_is_timestamp",
+          "value": "strftime('%Y-%m-%dT%H:%M:%fZ', \"created_at\") IS \"created_at\""
+        },
+        "updated_at_is_timestamp": {
+          "name": "updated_at_is_timestamp",
+          "value": "strftime('%Y-%m-%dT%H:%M:%fZ', \"updated_at\") IS \"updated_at\""
+        }
+      }
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}

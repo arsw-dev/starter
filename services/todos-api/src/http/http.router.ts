@@ -20,13 +20,26 @@ type Issue = {
 };
 
 // What a failed validation tells the client: each problem, where it was and
-// what's wrong, without zod's internals
+// what's wrong, without zod's internals. An unknown key is an issue of its own,
+// at its own path, as a client looks for it
 const toIssues = (target: keyof typeof IN, error: z.ZodError): Issue[] =>
-  error.issues.map((issue) => ({
-    in: IN[target],
-    path: issue.path.map(String).join('.'),
-    message: issue.message,
-  }));
+  error.issues.flatMap((issue) => {
+    if (issue.code === 'unrecognized_keys') {
+      return issue.keys.map((key) => ({
+        in: IN[target],
+        path: [...issue.path, key].map(String).join('.'),
+        message: 'Unrecognized key',
+      }));
+    }
+
+    return [
+      {
+        in: IN[target],
+        path: issue.path.map(String).join('.'),
+        message: issue.message,
+      },
+    ];
+  });
 
 const defaultHook: OpenAPIHonoOptions<AppEnv>['defaultHook'] = (
   result,

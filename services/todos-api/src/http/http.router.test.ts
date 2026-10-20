@@ -82,3 +82,39 @@ it('reports every problem, in order', () => {
     'done',
   ]);
 });
+
+it('gives each unknown key an issue of its own, at its path', () => {
+  const error = errorFor(z.strictObject(title.shape), {
+    title: 'Buy milk',
+    done: true,
+    pk: 5,
+  });
+
+  expect(toIssues('json', error)).toEqual([
+    {
+      in: 'body',
+      path: 'done',
+      message: 'Unrecognized key',
+    },
+    {
+      in: 'body',
+      path: 'pk',
+      message: 'Unrecognized key',
+    },
+  ]);
+});
+
+it('puts an unknown nested key under its parent', () => {
+  const nested = z.object({
+    meta: z.strictObject({}),
+  });
+  const error = errorFor(nested, {
+    meta: {
+      extra: 1,
+    },
+  });
+
+  expect(toIssues('json', error).map((issue) => issue.path)).toEqual([
+    'meta.extra',
+  ]);
+});
