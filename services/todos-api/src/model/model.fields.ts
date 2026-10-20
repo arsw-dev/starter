@@ -157,11 +157,6 @@ const booleanField = <const O extends FieldOptions<boolean>>(options: O) => {
   };
 };
 
-// A list of values meant as an enum, said by name rather than by `as const`.
-// (`enum` itself is a reserved word)
-const enumOf = <const V extends readonly [string, ...string[]]>(values: V) =>
-  values;
-
 const enumField = <
   const V extends readonly [string, ...string[]],
   const O extends FieldOptions<V[number]>,
@@ -215,5 +210,5 @@ const field = {
   date: dateField,
 };
 
-export { enumOf, field };
+export { field };
 export type { Access, Field, FieldOptions };
