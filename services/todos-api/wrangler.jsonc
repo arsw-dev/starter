@@ -3,4 +3,11 @@
   "name": "todos-api",
   "main": "src/main.ts",
   "compatibility_date": "2026-10-15",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "todos",
+      "migrations_dir": "migrations",
+    },
+  ],
 }

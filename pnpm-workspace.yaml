@@ -18,20 +18,24 @@ savePrefix: '' # no ^
 engineStrict: true # install fails on a Node older than package.json's engines
 
 catalogs:
-  # The toolchain and the runtimes' types
   api:
     '@hono/zod-openapi': 1.6.3
+    drizzle-orm: 0.45.4
     hono: 4.13.13
+
   shared:
     zod: 4.6.7
+
+  # The toolchain and the runtimes' types
   tooling:
     '@cloudflare/vitest-plugin': 1.4.4
     '@types/node': 26.6.5
+    drizzle-kit: 0.31.11
     oxlint: 1.88.0
     typescript: 7.1.0-dev.20261016.1 # the editor's, until 7.1 ships
     vite-plus: 1.2.0
     wrangler: 4.151.1
 
 allowBuilds:
-  esbuild: true # wrangler's: downloads its platform's binary
-  workerd: true # wrangler's: downloads its platform's binary
+  esbuild: true # downloads its platform's binary
+  workerd: true # downloads its platform's binary
