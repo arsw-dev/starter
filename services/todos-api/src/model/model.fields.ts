@@ -25,7 +25,9 @@ type Access = 'read' | 'create' | 'update';
 type FieldOptions<TValue> = {
   optional?: boolean;
   default?: TValue;
-  access: readonly Access[];
+  // Who sees the field: `'all'`, or the uses listed. Required, so a field is
+  // closed until it says otherwise
+  access: 'all' | readonly Access[];
 };
 
 // A field's column and its schema come from one list of constraints, each a

@@ -1,36 +1,31 @@
 import { defineModel } from '#/db/db.ts';
-import { enumOf, field } from '#/model/model.fields.ts';
 
-const PRIORITIES = enumOf(['low', 'medium', 'high']);
-
-const EVERYONE = ['read', 'create', 'update'] as const;
-
-// A todo starts not done: done is only ever set by an update
-const todos = defineModel('todos', {
+const todos = defineModel('todos', (field) => ({
   title: field.text({
     notBlank: true,
     maxLength: 200,
-    access: EVERYONE,
+    access: 'all',
   }),
+  // A todo starts not done: only an update sets it
   done: field.boolean({
     default: false,
     access: ['read', 'update'],
   }),
-  priority: field.enum(PRIORITIES, {
+  priority: field.enum(['low', 'medium', 'high'], {
     default: 'medium',
-    access: EVERYONE,
+    access: 'all',
   }),
   estimate: field.number({
     type: 'integer',
     gte: 1,
     optional: true,
-    access: EVERYONE,
+    access: 'all',
   }),
   dueDate: field.date({
     optional: true,
-    access: EVERYONE,
+    access: 'all',
   }),
-});
+}));
 
 // drizzle-kit only finds a table exported on its own
 const todosTable = todos.table;

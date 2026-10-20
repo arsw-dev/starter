@@ -3,45 +3,40 @@ import { SQLiteSyncDialect, getTableConfig } from 'drizzle-orm/sqlite-core';
 import { describe, expect, expectTypeOf, it } from 'vite-plus/test';
 
 import { createDefineModel } from './model.factory.ts';
-import { enumOf, field } from './model.fields.ts';
 
 import type { z } from '@hono/zod-openapi';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
 const defineModel = createDefineModel();
 
-const PRIORITIES = enumOf(['low', 'medium', 'high']);
-
-const EVERYONE = ['read', 'create', 'update'] as const;
-
-const todos = defineModel('todos', {
+const todos = defineModel('todos', (field) => ({
   title: field.text({
     notBlank: true,
     maxLength: 200,
-    access: EVERYONE,
+    access: 'all',
   }),
   done: field.boolean({
     default: false,
     access: ['read', 'update'],
   }),
-  priority: field.enum(PRIORITIES, {
+  priority: field.enum(['low', 'medium', 'high'], {
     default: 'medium',
-    access: EVERYONE,
+    access: 'all',
   }),
   estimate: field.number({
     type: 'integer',
     gte: 1,
     optional: true,
-    access: EVERYONE,
+    access: 'all',
   }),
   dueDate: field.date({
     optional: true,
-    access: EVERYONE,
+    access: 'all',
   }),
   secret: field.text({
     access: [],
   }),
-});
+}));
 
 const dialect = new SQLiteSyncDialect();
 
@@ -122,12 +117,12 @@ describe('types', () => {
   });
 
   it('refuses a field named like a standard column', () => {
-    defineModel('clash', {
+    defineModel('clash', (field) => ({
       // @ts-expect-error: every model has its own id
       id: field.text({
         access: [],
       }),
-    });
+    }));
   });
 });
 
@@ -192,11 +187,11 @@ describe('the table', () => {
   it('keeps the keys as column names when told to', () => {
     const model = createDefineModel({
       casing: 'camelCase',
-    })('notes', {
+    })('notes', (field) => ({
       dueDate: field.date({
         access: [],
       }),
-    });
+    }));
 
     expect(model.table.dueDate.name).toBe('dueDate');
     expect(model.table.createdAt.name).toBe('createdAt');
@@ -204,22 +199,22 @@ describe('the table', () => {
 
   it("refuses a default its field's constraints would refuse or change", () => {
     expect(() =>
-      defineModel('notes', {
+      defineModel('notes', (field) => ({
         title: field.text({
           notBlank: true,
           default: '',
           access: [],
         }),
-      }),
+      })),
     ).toThrow("title's default breaks its own constraints");
 
     expect(() =>
-      defineModel('notes', {
+      defineModel('notes', (field) => ({
         title: field.text({
           default: ' untitled',
           access: [],
         }),
-      }),
+      })),
     ).toThrow("title's default breaks its own constraints");
   });
 });

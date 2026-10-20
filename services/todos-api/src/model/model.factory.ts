@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import { check, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 import { TIMESTAMP_FORMAT, isTimestamp, isUuid } from './model.constraints.ts';
+import { field } from './model.fields.ts';
 
 import type { Constraint } from './model.constraints.ts';
 import type { Access, FieldOptions } from './model.fields.ts';
@@ -57,9 +58,13 @@ type IsOptional<O> = O extends {
 
 type Schema<F extends Fields, K extends keyof F> = ReturnType<F[K]['schema']>;
 
-// Keys whose field lists an access
+// Keys whose field allows an access
 type KeysWith<F extends Fields, A extends Access> = {
-  [K in keyof F]: A extends F[K]['options']['access'][number] ? K : never;
+  [K in keyof F]: F[K]['options']['access'] extends 'all'
+    ? K
+    : A extends F[K]['options']['access'][number]
+      ? K
+      : never;
 }[keyof F];
 
 type SelectShape<F extends Fields> = {
@@ -92,7 +97,7 @@ type ModelOptions = {
 };
 
 const has = (options: FieldOptions<unknown>, access: Access) =>
-  options.access.includes(access);
+  options.access === 'all' || options.access.includes(access);
 
 // The one place the factory asserts a type: TypeScript can't type an object
 // built from entries as a mapped type, so the type tests check each shape
@@ -172,10 +177,14 @@ const toCheck = (
 const createDefineModel = ({ casing = 'snake_case' }: ModelOptions = {}) => {
   const name = (key: string) => toColumnName(casing, key);
 
-  const defineModel = <TName extends string, const F extends Fields>(
+  // The fields come from a function given the field kinds, so a model needs
+  // nothing imported but defineModel
+  const defineModel = <TName extends string, F extends Fields>(
     tableName: TName,
-    fields: F,
+    define: (kinds: typeof field) => F,
   ) => {
+    const fields = define(field);
+
     for (const [key, f] of Object.entries(fields)) assertDefault(key, f);
 
     const columns = mapFields<Columns<F>>(fields, (f, key) =>
