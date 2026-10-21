@@ -23,4 +23,8 @@ const api = createServerOnlyFn(() =>
   }),
 );
 
+// The client's type, for what a request takes: InferRequestType<…> on a route
+type ApiClient = ReturnType<typeof api>;
+
 export { api };
+export type { ApiClient };

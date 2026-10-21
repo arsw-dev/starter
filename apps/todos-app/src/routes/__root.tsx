@@ -12,6 +12,8 @@ import { AppFailure } from '#/components/app-failure.tsx';
 import type { RouterContext } from '#/router.tsx';
 import type { PropsWithChildren } from 'react';
 
+import styles from '#/styles.css?url';
+
 const Document = ({ children }: PropsWithChildren) => {
   return (
     <html lang="en">
@@ -51,6 +53,12 @@ const Route = createRootRouteWithContext<RouterContext>()({
       },
       {
         title: 'Todos',
+      },
+    ],
+    links: [
+      {
+        rel: 'stylesheet',
+        href: styles,
       },
     ],
   }),

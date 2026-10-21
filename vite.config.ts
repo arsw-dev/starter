@@ -5,6 +5,8 @@ export default defineConfig({
     printWidth: 80,
     singleQuote: true,
     proseWrap: 'always',
+    // Tailwind's classes in the order its own Prettier plugin gives them
+    sortTailwindcss: true,
     sortImports: {
       groups: [
         'value-builtin',

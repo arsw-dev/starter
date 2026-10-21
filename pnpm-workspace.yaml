@@ -21,6 +21,7 @@ catalogs:
   # Front-end dependencies
   app:
     '@cloudflare/vite-plugin': 1.64.0
+    '@tailwindcss/vite': 4.3.3
     '@tanstack/devtools-vite': 0.8.5
     '@tanstack/react-devtools': 0.10.13
     '@tanstack/react-query': 5.104.4
@@ -34,6 +35,7 @@ catalogs:
     '@vitejs/plugin-react': 6.1.2
     react: 19.3.1
     react-dom: 19.3.1
+    tailwindcss: 4.3.3
     zustand: 5.0.15
 
   api:
