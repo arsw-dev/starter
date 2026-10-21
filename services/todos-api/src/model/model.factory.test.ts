@@ -1,4 +1,6 @@
 import { env } from 'cloudflare:workers';
+import { getTableColumns } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/d1';
 import { SQLiteSyncDialect, getTableConfig } from 'drizzle-orm/sqlite-core';
 import { describe, expect, expectTypeOf, it } from 'vite-plus/test';
 
@@ -89,7 +91,7 @@ describe('types', () => {
   });
 
   it('types each schema from access, optional and default', () => {
-    expectTypeOf<z.infer<typeof todos.select>>().toEqualTypeOf<{
+    expectTypeOf<z.infer<typeof todos.read>>().toEqualTypeOf<{
       id: string;
       title: string;
       done: boolean;
@@ -216,6 +218,35 @@ describe('the table', () => {
         }),
       })),
     ).toThrow("title's default breaks its own constraints");
+  });
+});
+
+describe('the columns', () => {
+  it('lists every column, pk and unread fields included', () => {
+    expect(Object.keys(todos.columns)).toEqual([
+      'pk',
+      'id',
+      'title',
+      'done',
+      'priority',
+      'estimate',
+      'dueDate',
+      'secret',
+      'createdAt',
+      'updatedAt',
+    ]);
+    expectTypeOf(todos.columns).toEqualTypeOf(getTableColumns(todos.table));
+  });
+
+  it('selects with readColumns only what read describes', () => {
+    const query = drizzle(env.DB).select(todos.readColumns).from(todos.table);
+
+    expectTypeOf<Awaited<ReturnType<typeof query.get>>>().toEqualTypeOf<
+      z.infer<typeof todos.read> | undefined
+    >();
+    expect(query.toSQL().sql).toBe(
+      'select "id", "title", "done", "priority", "estimate", "due_date", "created_at", "updated_at" from "todos"',
+    );
   });
 });
 

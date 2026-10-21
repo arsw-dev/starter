@@ -1,5 +1,5 @@
 import { z } from '@hono/zod-openapi';
-import { sql } from 'drizzle-orm';
+import { getTableColumns, sql } from 'drizzle-orm';
 import { check, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 import { TIMESTAMP_FORMAT, isTimestamp, isUuid } from './model.constraints.ts';
@@ -46,7 +46,7 @@ type Column<TBuilder extends SQLiteColumnBuilderBase, O> = O extends {
   ? HasDefault<Nullable<TBuilder, O>>
   : Nullable<TBuilder, O>;
 
-type Columns<F extends Fields> = {
+type Builders<F extends Fields> = {
   [K in keyof F]: Column<ReturnType<F[K]['column']>, F[K]['options']>;
 };
 
@@ -67,7 +67,7 @@ type KeysWith<F extends Fields, A extends Access> = {
       : never;
 }[keyof F];
 
-type SelectShape<F extends Fields> = {
+type ReadShape<F extends Fields> = {
   [K in KeysWith<F, 'read'>]: IsOptional<F[K]['options']> extends true
     ? z.ZodNullable<Schema<F, K>>
     : Schema<F, K>;
@@ -187,7 +187,7 @@ const createDefineModel = ({ casing = 'snake_case' }: ModelOptions = {}) => {
 
     for (const [key, f] of Object.entries(fields)) assertDefault(key, f);
 
-    const columns = mapFields<Columns<F>>(fields, (f, key) =>
+    const builders = mapFields<Builders<F>>(fields, (f, key) =>
       withOptions(f.column(name(key)), f.options),
     );
 
@@ -199,7 +199,7 @@ const createDefineModel = ({ casing = 'snake_case' }: ModelOptions = {}) => {
           .notNull()
           .unique()
           .$defaultFn(() => crypto.randomUUID()),
-        ...columns,
+        ...builders,
         createdAt: text(name('createdAt')).notNull().default(now()),
         updatedAt: text(name('updatedAt'))
           .notNull()
@@ -216,9 +216,23 @@ const createDefineModel = ({ casing = 'snake_case' }: ModelOptions = {}) => {
       ],
     );
 
-    const select = z.object({
+    // Every column, as Drizzle has them, and only the ones `read` describes:
+    // selecting with readColumns keeps pk and unread fields in the database
+    const columns = getTableColumns(table);
+    const byKey: Record<string, unknown> = columns;
+
+    const readColumns = {
+      id: columns.id,
+      ...mapFields<{
+        [K in KeysWith<F, 'read'>]: (typeof columns)[K & keyof typeof columns];
+      }>(fields, (_, key) => byKey[key], 'read'),
+      createdAt: columns.createdAt,
+      updatedAt: columns.updatedAt,
+    };
+
+    const read = z.object({
       id: idSchema,
-      ...mapFields<SelectShape<F>>(
+      ...mapFields<ReadShape<F>>(
         fields,
         (f, key) =>
           f.options.optional ? schemaOf(f, key).nullable() : schemaOf(f, key),
@@ -268,7 +282,9 @@ const createDefineModel = ({ casing = 'snake_case' }: ModelOptions = {}) => {
 
     return {
       table,
-      select,
+      columns,
+      readColumns,
+      read,
       create,
       update,
       params,
