@@ -1,5 +1,8 @@
-import { createApp } from './app.ts';
+import { createApp, registerRoutes } from './app/app.ts';
 
-const app = createApp();
+const app = registerRoutes(createApp());
+
+type AppType = typeof app;
 
 export default app;
+export type { AppType };

@@ -1,13 +1,11 @@
 import { HTTPException } from 'hono/http-exception';
 
-import type { AppEnv } from './http.types.ts';
+import type { AppEnv, ErrorBody } from './http.types.ts';
 import type { ErrorHandler, NotFoundHandler } from 'hono';
 
 type ErrorResponse = {
   status: HTTPException['status'];
-  body: {
-    message: string;
-  };
+  body: ErrorBody;
 };
 
 class NotFound extends Error {
@@ -47,7 +45,7 @@ const notFound: NotFoundHandler<AppEnv> = (ctx) =>
   ctx.json(
     {
       message: 'Not Found',
-    },
+    } satisfies ErrorBody,
     404,
   );
 
