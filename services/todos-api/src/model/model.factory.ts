@@ -216,7 +216,7 @@ const createDefineModel = ({ casing = 'snake_case' }: ModelOptions = {}) => {
       ],
     );
 
-    // Every column, as Drizzle has them, and only the ones `read` describes:
+    // Every column, as Drizzle has them, and only the ones readSchema describes:
     // selecting with readColumns keeps pk and unread fields in the database
     const columns = getTableColumns(table);
     const byKey: Record<string, unknown> = columns;
@@ -230,7 +230,7 @@ const createDefineModel = ({ casing = 'snake_case' }: ModelOptions = {}) => {
       updatedAt: columns.updatedAt,
     };
 
-    const read = z.object({
+    const readSchema = z.object({
       id: idSchema,
       ...mapFields<ReadShape<F>>(
         fields,
@@ -242,7 +242,7 @@ const createDefineModel = ({ casing = 'snake_case' }: ModelOptions = {}) => {
       updatedAt: timestampSchema,
     });
 
-    const create = z
+    const createSchema = z
       .object(
         mapFields<CreateShape<F>>(
           fields,
@@ -259,7 +259,7 @@ const createDefineModel = ({ casing = 'snake_case' }: ModelOptions = {}) => {
       )
       .strict();
 
-    const update = z
+    const updateSchema = z
       .object(
         mapFields<UpdateShape<F>>(
           fields,
@@ -276,7 +276,7 @@ const createDefineModel = ({ casing = 'snake_case' }: ModelOptions = {}) => {
         'Send at least one field to update',
       );
 
-    const params = z.object({
+    const paramsSchema = z.object({
       id: idSchema,
     });
 
@@ -284,10 +284,10 @@ const createDefineModel = ({ casing = 'snake_case' }: ModelOptions = {}) => {
       table,
       columns,
       readColumns,
-      read,
-      create,
-      update,
-      params,
+      readSchema,
+      createSchema,
+      updateSchema,
+      paramsSchema,
     };
   };
 
