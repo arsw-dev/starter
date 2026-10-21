@@ -1,7 +1,7 @@
 import { HTTPException } from 'hono/http-exception';
 import { expect, it } from 'vite-plus/test';
 
-import { NotFound, toErrorResponse } from './http.errors.ts';
+import { NotFound, toErrorResponse } from '#/http/http.errors.ts';
 
 it('makes a NotFound a 404 with its message', () => {
   expect(toErrorResponse(new NotFound('Todo not found'))).toEqual({

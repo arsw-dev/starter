@@ -2,8 +2,8 @@ import { env } from 'cloudflare:workers';
 import { drizzle } from 'drizzle-orm/d1';
 import { beforeEach, describe, expect, it } from 'vite-plus/test';
 
-import { todosModel } from './todos.model.ts';
-import { todosOps } from './todos.operations.ts';
+import { todosModel } from '#/todos/todos.model.ts';
+import { todosOps } from '#/todos/todos.operations.ts';
 
 const db = drizzle(env.DB);
 

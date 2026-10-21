@@ -1,6 +1,5 @@
+import { noInlineExport } from '#/rules/no-inline-export/no-inline-export.ts';
 import { ruleTester } from '#/rules/rule.tester.ts';
-
-import { noInlineExport } from './no-inline-export.ts';
 
 ruleTester.run('no-inline-export', noInlineExport, {
   valid: [

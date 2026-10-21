@@ -3,10 +3,9 @@ import { env } from 'cloudflare:workers';
 import { sql } from 'drizzle-orm';
 import { expect, it } from 'vite-plus/test';
 
+import { createApp } from '#/app/app.ts';
 import { NotFound } from '#/http/http.errors.ts';
 import { json } from '#/http/http.schemas.ts';
-
-import { createApp } from './app.ts';
 
 // What createApp wires up, checked once with routes of its own rather than
 // through every domain's: Hono calls the hooks, but registering them is ours

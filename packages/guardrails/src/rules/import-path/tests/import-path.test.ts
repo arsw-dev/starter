@@ -1,11 +1,10 @@
 import { join } from 'node:path';
 
+import { importPath } from '#/rules/import-path/import-path.ts';
 import { ruleTester } from '#/rules/rule.tester.ts';
 
-import { importPath } from './import-path.ts';
-
 // Files of this package, so the rule finds its package.json
-const SRC = join(import.meta.dirname, '..', '..');
+const SRC = join(import.meta.dirname, '..', '..', '..');
 const inRule = join(SRC, 'rules', 'import-path', 'example.ts');
 const atTop = join(SRC, 'example.ts');
 const outsideSrc = join(SRC, '..', 'scripts', 'example.ts');

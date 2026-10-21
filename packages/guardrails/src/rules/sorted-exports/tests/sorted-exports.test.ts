@@ -1,6 +1,5 @@
 import { ruleTester } from '#/rules/rule.tester.ts';
-
-import { sortedExports } from './sorted-exports.ts';
+import { sortedExports } from '#/rules/sorted-exports/sorted-exports.ts';
 
 const unsorted = (code: string, output: string | null) => ({
   code,

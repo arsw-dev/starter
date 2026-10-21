@@ -27,11 +27,5 @@
   "js/ts.preferences.autoImportSpecifierExcludeRegexes": ["^\\.\\./"],
   // "js" writes the extension the file has, so .ts here (with
   // allowImportingTsExtensions); "auto" leaves it off under bundler resolution
-  "js/ts.preferences.importModuleSpecifierEnding": "js",
-  // Each test folded under the file it tests, so a folder shows only source
-  "explorer.fileNesting.enabled": true,
-  "explorer.fileNesting.expand": false,
-  "explorer.fileNesting.patterns": {
-    "*.ts": "${capture}.test.ts"
-  }
+  "js/ts.preferences.importModuleSpecifierEnding": "js"
 }

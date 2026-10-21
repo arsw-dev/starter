@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vite-plus/test';
 
-import { field } from './model.fields.ts';
+import { field } from '#/model/model.fields.ts';
 
-import type { Field, FieldOptions } from './model.fields.ts';
+import type { Field, FieldOptions } from '#/model/model.fields.ts';
 import type { z } from '@hono/zod-openapi';
 
 const names = (

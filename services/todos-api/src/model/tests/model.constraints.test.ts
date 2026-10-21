@@ -21,11 +21,11 @@ import {
   notBlank,
   oneOf,
   trimmed,
-} from './model.constraints.ts';
-import { idSchema, timestampSchema } from './model.factory.ts';
-import { field } from './model.fields.ts';
+} from '#/model/model.constraints.ts';
+import { idSchema, timestampSchema } from '#/model/model.factory.ts';
+import { field } from '#/model/model.fields.ts';
 
-import type { Constraint } from './model.constraints.ts';
+import type { Constraint } from '#/model/model.constraints.ts';
 
 // How values cross between zod and the column: a boolean is 0 or 1 in the
 // database. Decoding leaves anything else as it is, for zod to refuse
