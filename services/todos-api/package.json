@@ -5,6 +5,9 @@
   "imports": {
     "#/*": "./src/*"
   },
+  "exports": {
+    "./client": "./src/client.ts"
+  },
   "scripts": {
     "prepare": "wrangler types",
     "dev": "wrangler dev",

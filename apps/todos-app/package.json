@@ -1,0 +1,36 @@
+{
+  "name": "@arsw/todos-app",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#/*": "./src/*"
+  },
+  "scripts": {
+    "dev": "vp dev",
+    "build": "vp build"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "catalog:app",
+    "@tanstack/react-router": "catalog:app",
+    "@tanstack/react-router-ssr-query": "catalog:app",
+    "@tanstack/react-start": "catalog:app",
+    "hono": "catalog:api",
+    "react": "catalog:app",
+    "react-dom": "catalog:app",
+    "zustand": "catalog:app"
+  },
+  "devDependencies": {
+    "@arsw/todos-api": "workspace:*",
+    "@arsw/tsconfig": "workspace:*",
+    "@cloudflare/vite-plugin": "catalog:app",
+    "@tanstack/devtools-vite": "catalog:app",
+    "@tanstack/react-devtools": "catalog:app",
+    "@tanstack/react-query-devtools": "catalog:app",
+    "@tanstack/react-router-devtools": "catalog:app",
+    "@types/react": "catalog:app",
+    "@types/react-dom": "catalog:app",
+    "@vitejs/plugin-react": "catalog:app",
+    "vite-plus": "catalog:tooling",
+    "wrangler": "catalog:tooling"
+  }
+}
