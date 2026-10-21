@@ -19,8 +19,13 @@ export default defineConfig({
       internalPattern: ['@arsw/'],
       newlinesBetween: true,
     },
-    // Generated, never written by hand: `wrangler types`, drizzle-kit's snapshots
-    ignorePatterns: ['**/worker-configuration.d.ts', '**/migrations/meta/**'],
+    // Generated, never written by hand: `wrangler types`, drizzle-kit's
+    // snapshots, the OpenAPI document
+    ignorePatterns: [
+      '**/worker-configuration.d.ts',
+      '**/migrations/meta/**',
+      '**/openapi.json',
+    ],
   },
   lint: {
     plugins: [

@@ -10,7 +10,8 @@
     "dev": "wrangler dev",
     "types": "wrangler types",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "wrangler d1 migrations apply todos --local"
+    "db:migrate": "wrangler d1 migrations apply todos --local",
+    "openapi": "node scripts/openapi.ts"
   },
   "dependencies": {
     "@hono/zod-openapi": "catalog:api",

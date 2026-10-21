@@ -274,7 +274,11 @@ const createDefineModel = ({ casing = 'snake_case' }: ModelOptions = {}) => {
       .refine(
         (values) => Object.keys(values).length > 0,
         'Send at least one field to update',
-      );
+      )
+      // A refine has no JSON Schema form, so the document says it this way
+      .openapi({
+        minProperties: 1,
+      });
 
     const paramsSchema = z.object({
       id: idSchema,
