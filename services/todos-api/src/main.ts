@@ -1,4 +1,4 @@
-import { createApp, registerRoutes } from './app.ts';
+import { createApp, registerRoutes } from './app/app.ts';
 
 const app = registerRoutes(createApp());
 
