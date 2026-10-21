@@ -1,7 +1,7 @@
 import { z } from '@hono/zod-openapi';
 import { expect, it } from 'vite-plus/test';
 
-import { toIssues } from './http.router.ts';
+import { toIssues } from '#/http/http.router.ts';
 
 // The zod error a schema gives for the input it's handed
 const errorFor = (schema: z.ZodType, input: unknown) => {

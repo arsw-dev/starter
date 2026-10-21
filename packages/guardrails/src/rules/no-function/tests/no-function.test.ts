@@ -1,6 +1,5 @@
+import { noFunction } from '#/rules/no-function/no-function.ts';
 import { ruleTester } from '#/rules/rule.tester.ts';
-
-import { noFunction } from './no-function.ts';
 
 const invalid = (code: string) => ({
   code,

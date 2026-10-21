@@ -21,6 +21,6 @@ export default defineConfig(async () => ({
     }),
   ],
   test: {
-    setupFiles: ['./src/db/db.setup.ts'],
+    setupFiles: ['./src/db/tests/db.setup.ts'],
   },
 }));

@@ -1,6 +1,5 @@
+import { breathe } from '#/rules/breathe/breathe.ts';
 import { ruleTester } from '#/rules/rule.tester.ts';
-
-import { breathe } from './breathe.ts';
 
 ruleTester.run('breathe', breathe, {
   valid: [

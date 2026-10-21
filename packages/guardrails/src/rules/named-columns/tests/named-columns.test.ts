@@ -1,6 +1,5 @@
+import { namedColumns } from '#/rules/named-columns/named-columns.ts';
 import { ruleTester } from '#/rules/rule.tester.ts';
-
-import { namedColumns } from './named-columns.ts';
 
 const whole = (code: string) => ({
   code,

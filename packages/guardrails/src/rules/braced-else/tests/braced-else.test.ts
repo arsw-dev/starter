@@ -1,6 +1,5 @@
+import { bracedElse } from '#/rules/braced-else/braced-else.ts';
 import { ruleTester } from '#/rules/rule.tester.ts';
-
-import { bracedElse } from './braced-else.ts';
 
 ruleTester.run('braced-else', bracedElse, {
   valid: [

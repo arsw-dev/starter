@@ -5,7 +5,7 @@ import { drizzle } from 'drizzle-orm/d1';
 import { SQLiteSyncDialect, getTableConfig } from 'drizzle-orm/sqlite-core';
 import { describe, expect, expectTypeOf, it } from 'vite-plus/test';
 
-import { createDefineModel } from './model.factory.ts';
+import { createDefineModel } from '#/model/model.factory.ts';
 
 import type { z } from '@hono/zod-openapi';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';

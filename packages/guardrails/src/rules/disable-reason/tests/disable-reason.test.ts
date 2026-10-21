@@ -1,6 +1,5 @@
+import { disableReason } from '#/rules/disable-reason/disable-reason.ts';
 import { ruleTester } from '#/rules/rule.tester.ts';
-
-import { disableReason } from './disable-reason.ts';
 
 const invalid = (code: string) => ({
   code,

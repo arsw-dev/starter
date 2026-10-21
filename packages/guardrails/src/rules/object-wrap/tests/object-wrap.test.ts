@@ -1,6 +1,5 @@
+import { objectWrap } from '#/rules/object-wrap/object-wrap.ts';
 import { ruleTester } from '#/rules/rule.tester.ts';
-
-import { objectWrap } from './object-wrap.ts';
 
 ruleTester.run('object-wrap', objectWrap, {
   valid: [
