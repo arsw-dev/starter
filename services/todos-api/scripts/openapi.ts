@@ -15,6 +15,6 @@ const document = app.getOpenAPI31Document({
 });
 
 await writeFile(
-  path.join(import.meta.dirname, '..', 'openapi.json'),
+  path.join(import.meta.dirname, '..', 'docs', 'openapi.json'),
   `${JSON.stringify(document, null, 2)}\n`,
 );
