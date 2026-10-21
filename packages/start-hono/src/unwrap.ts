@@ -1,6 +1,6 @@
-import { ApiError } from './api.error.ts';
+import { ApiError } from './error.ts';
 
-import type { Issue } from '@arsw/todos-api/client';
+import type { Issue } from './error.ts';
 
 const isIssue = (value: unknown): value is Issue =>
   typeof value === 'object' &&
@@ -29,14 +29,15 @@ const issuesOf = async (response: Response): Promise<Issue[]> => {
   return body.issues.filter(isIssue);
 };
 
-// A todos-api response as a server function returns it: the success body,
+// An API's response as a server function returns it: the success body,
 // nothing for a 204, which has none, or an ApiError
-const unwrap = async (response: Response): Promise<unknown> => {
+const unwrap = async (api: string, response: Response): Promise<unknown> => {
   if (response.ok) {
     return response.status === 204 ? undefined : response.json();
   }
 
   throw new ApiError(
+    api,
     response.status,
     response.status === 422 ? await issuesOf(response) : [],
   );

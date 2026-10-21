@@ -2,10 +2,10 @@
 // Workers runtime's own Request and Response, which clash with the DOM's the
 // app is checked against
 declare module 'cloudflare:workers' {
+  import type { ServiceBinding } from '@arsw/start-hono/server';
+
   const env: {
-    TODOS_API: {
-      fetch: (request: Request) => Promise<Response>;
-    };
+    TODOS_API: ServiceBinding;
   };
 
   export { env };

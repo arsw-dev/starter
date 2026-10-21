@@ -2,7 +2,8 @@ import { noop, useMutation, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { Suspense, useState } from 'react';
 
-import { ApiError } from '#/api/api.error.ts';
+import { ApiError } from '@arsw/start-hono';
+
 import { todosApi } from '#/todos/todos.api.ts';
 
 export const Route = createFileRoute('/')({

@@ -6,6 +6,11 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite-plus';
 
 export default defineConfig(({ mode }) => ({
+  // Reached only through @arsw/start-hono, so Vite would find it on the first
+  // page load and reload midway, with two copies of React on the page
+  optimizeDeps: {
+    include: ['@tanstack/react-router-ssr-query'],
+  },
   // Tests run in Node, on the app's own code: Cloudflare's plugin would run
   // them as the Worker
   plugins:

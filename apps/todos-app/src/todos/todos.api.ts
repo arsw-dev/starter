@@ -1,15 +1,19 @@
 import { createServerFn } from '@tanstack/react-start';
 
-import { call } from '#/api/api.call.ts';
-import { defineApi } from '#/api/api.factory.ts';
+import { defineApi } from '@arsw/start-hono';
 
-import type { ApiClient } from '#/api/api.server.ts';
+import { call } from '#/api/api.server.ts';
+
+import type { Client } from '@arsw/start-hono/server';
+import type { AppType } from '@arsw/todos-api/client';
 import type { QueryKey } from '@tanstack/react-query';
 import type { InferRequestType } from 'hono/client';
 
-type NewTodo = InferRequestType<ApiClient['todos']['$post']>['json'];
+type TodosClient = Client<AppType>;
 
-type TodoId = InferRequestType<ApiClient['todos'][':id']['$delete']>['param'];
+type NewTodo = InferRequestType<TodosClient['todos']['$post']>['json'];
+
+type TodoId = InferRequestType<TodosClient['todos'][':id']['$delete']>['param'];
 
 const getAll = createServerFn({
   method: 'GET',

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import type { ApiError } from '#/api/api.error.ts';
+import type { ApiError } from '@arsw/start-hono';
 
 type AppStatus = {
   // A read that failed on todos-api's side: the page can't be trusted until

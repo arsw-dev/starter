@@ -1,7 +1,7 @@
 import { MutationObserver, QueryClient } from '@tanstack/react-query';
 import { describe, expect, expectTypeOf, it, vi } from 'vite-plus/test';
 
-import { defineApi } from '#/api/api.factory.ts';
+import { defineApi } from '#/factory.ts';
 
 import type { QueryKey, UseMutationOptions } from '@tanstack/react-query';
 

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 
-import { isServerError } from '#/api/api.error.ts';
+import { isServerError } from '@arsw/start-hono';
+
 import { useAppStatus } from '#/stores/app-status.ts';
 
 import type { ErrorComponentProps } from '@tanstack/react-router';

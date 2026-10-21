@@ -1,11 +1,11 @@
 import { createRouter } from '@tanstack/react-router';
-import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query';
 
-import { ApiError } from './api/api.error.ts';
-import { createQueryClient } from './api/api.query-client.ts';
+import { createQueryClient, setupSsr } from '@arsw/start-hono';
+
 import { NotFound } from './components/not-found.tsx';
 import { RouteError } from './components/route-error.tsx';
 import { routeTree } from './routeTree.gen.ts';
+import { useAppStatus } from './stores/app-status.ts';
 
 import type { QueryClient } from '@tanstack/react-query';
 
@@ -14,7 +14,11 @@ type RouterContext = {
 };
 
 const getRouter = () => {
-  const queryClient = createQueryClient();
+  const queryClient = createQueryClient({
+    onServerError: (error) => {
+      useAppStatus.getState().fail(error);
+    },
+  });
 
   const router = createRouter({
     routeTree,
@@ -29,15 +33,7 @@ const getRouter = () => {
     scrollRestoration: true,
   });
 
-  setupRouterSsrQueryIntegration({
-    router,
-    queryClient,
-    // Query redacts every error it sends from the server; an ApiError carries
-    // only a status, and the browser needs it to tell a 500 from a 404
-    dehydrateOptions: {
-      shouldRedactErrors: (error) => !(error instanceof ApiError),
-    },
-  });
+  setupSsr(router, queryClient);
 
   return router;
 };

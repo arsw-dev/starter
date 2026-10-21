@@ -4,9 +4,7 @@ import {
   environmentManager,
 } from '@tanstack/react-query';
 
-import { useAppStatus } from '#/stores/app-status.ts';
-
-import { ApiError, isServerError } from './api.error.ts';
+import { ApiError, isServerError } from './error.ts';
 
 const RETRIES = 3;
 
@@ -20,10 +18,15 @@ const retry = (failures: number, error: Error) => {
   return failures < RETRIES;
 };
 
+type Options = {
+  // What the app shows for a read the API failed on its side, in the browser
+  onServerError: (error: ApiError) => void;
+};
+
 // One per request on the server, one in the browser. Every page refetches
 // what it shows (staleTime 0), but what's cached stays on screen meanwhile
 // (gcTime), so moving between pages shows data, not skeletons
-const createQueryClient = () =>
+const createQueryClient = ({ onServerError }: Options) =>
   new QueryClient({
     defaultOptions: {
       queries: {
@@ -38,7 +41,7 @@ const createQueryClient = () =>
       onError: (error) => {
         if (environmentManager.isServer() || !isServerError(error)) return;
 
-        useAppStatus.getState().fail(error);
+        onServerError(error);
       },
     }),
   });

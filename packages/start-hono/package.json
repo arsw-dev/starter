@@ -1,0 +1,31 @@
+{
+  "name": "@arsw/start-hono",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#/*": "./src/*"
+  },
+  "exports": {
+    ".": "./src/main.ts",
+    "./server": "./src/server.ts"
+  },
+  "devDependencies": {
+    "@arsw/tsconfig": "workspace:*",
+    "@tanstack/react-query": "catalog:app",
+    "@tanstack/react-router": "catalog:app",
+    "@tanstack/react-router-ssr-query": "catalog:app",
+    "@tanstack/react-start": "catalog:app",
+    "@types/react": "catalog:app",
+    "hono": "catalog:api",
+    "react": "catalog:app",
+    "react-dom": "catalog:app",
+    "vite-plus": "catalog:tooling"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "catalog:app",
+    "@tanstack/react-router": "catalog:app",
+    "@tanstack/react-router-ssr-query": "catalog:app",
+    "@tanstack/react-start": "catalog:app",
+    "hono": "catalog:api"
+  }
+}

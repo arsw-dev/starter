@@ -10,6 +10,7 @@
     "build": "vp build"
   },
   "dependencies": {
+    "@arsw/start-hono": "workspace:*",
     "@tanstack/react-query": "catalog:app",
     "@tanstack/react-router": "catalog:app",
     "@tanstack/react-router-ssr-query": "catalog:app",

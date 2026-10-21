@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vite-plus/test';
 
-import { ApiError } from '#/api/api.error.ts';
-import { unwrap } from '#/api/api.unwrap.ts';
+import { ApiError } from '#/error.ts';
+import { unwrap } from '#/unwrap.ts';
 
 const json = (body: unknown, status: number) =>
   new Response(JSON.stringify(body), {
@@ -12,7 +12,7 @@ const json = (body: unknown, status: number) =>
   });
 
 const rejection = async (response: Response) =>
-  unwrap(response).then(
+  unwrap('todos-api', response).then(
     () => {
       throw new Error('unwrap resolved');
     },
@@ -23,6 +23,7 @@ describe('unwrap', () => {
   it("returns a success's body", async () => {
     await expect(
       unwrap(
+        'todos-api',
         json(
           {
             title: 'Write tests',
@@ -38,6 +39,7 @@ describe('unwrap', () => {
   it('returns nothing for a 204', async () => {
     await expect(
       unwrap(
+        'todos-api',
         new Response(null, {
           status: 204,
         }),
@@ -54,6 +56,7 @@ describe('unwrap', () => {
 
     expect(error).toBeInstanceOf(ApiError);
     expect(error).toMatchObject({
+      api: 'todos-api',
       status: 503,
       issues: [],
     });
