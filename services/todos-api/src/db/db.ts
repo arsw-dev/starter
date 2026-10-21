@@ -17,5 +17,5 @@ const database = createMiddleware<AppEnv>(async (c, next) => {
 
 type DB = DrizzleD1Database;
 
-export { defineModel, database };
+export { database, defineModel };
 export type { DB };

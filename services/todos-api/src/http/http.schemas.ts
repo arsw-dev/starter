@@ -42,4 +42,4 @@ const json = <TSchema extends z.ZodType>(
   description,
 });
 
-export { LOCATIONS, errorSchema, issueSchema, invalidSchema, json };
+export { LOCATIONS, errorSchema, invalidSchema, issueSchema, json };

@@ -59,6 +59,8 @@ export default defineConfig({
       'import/exports-last': 'error',
       'import/group-exports': 'error',
       'arsw/no-inline-export': 'error',
+      // An export list in order, as sort-imports keeps an import's names
+      'arsw/sorted-exports': 'error',
       // Imports: name the .ts file, never climb out with ../
       // never import only for side effects
       'import/extensions': [
@@ -79,12 +81,24 @@ export default defineConfig({
         },
       ],
       'import/consistent-type-specifier-style': ['error', 'prefer-top-level'],
+      // One import per module and kind: a value import and an import type
+      // stay apart, as prefer-top-level needs
+      'import/no-duplicates': 'error',
+      // An import's names in order; oxfmt orders the imports themselves
+      'sort-imports': [
+        'error',
+        {
+          ignoreDeclarationSort: true,
+        },
+      ],
       // Functions: arrows only
       'arsw/no-function': 'error',
       // Types
       'typescript/consistent-type-definitions': ['error', 'type'],
       'typescript/consistent-type-imports': 'error',
       'typescript/no-explicit-any': 'error',
+      // An API marked deprecated still compiles, until the release that drops it
+      'typescript/no-deprecated': 'error',
       // Promises: awaited, returned or voided,
       // and never passed where a callback's result is ignored
       'typescript/no-floating-promises': 'error',
@@ -103,6 +117,14 @@ export default defineConfig({
         files: ['**/*.config.ts', '**/main.ts'],
         rules: {
           'import/no-default-export': 'off',
+        },
+      },
+      {
+        // What an API sends comes from its operations, so they name the
+        // columns they read and return
+        files: ['**/*.operations.ts'],
+        rules: {
+          'arsw/named-columns': 'error',
         },
       },
     ],
