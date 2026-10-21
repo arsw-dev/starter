@@ -1,7 +1,15 @@
 import { TanStackDevtools } from '@tanstack/react-devtools';
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router';
+import { ReactQueryDevtoolsPanel } from '@tanstack/react-query-devtools';
+import {
+  HeadContent,
+  Scripts,
+  createRootRouteWithContext,
+} from '@tanstack/react-router';
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools';
 
+import { AppFailure } from '#/components/app-failure.tsx';
+
+import type { RouterContext } from '#/router.tsx';
 import type { PropsWithChildren } from 'react';
 
 const Document = ({ children }: PropsWithChildren) => {
@@ -12,11 +20,16 @@ const Document = ({ children }: PropsWithChildren) => {
       </head>
       <body>
         {children}
+        <AppFailure />
         <TanStackDevtools
           plugins={[
             {
               name: 'Router',
               render: <TanStackRouterDevtoolsPanel />,
+            },
+            {
+              name: 'Query',
+              render: <ReactQueryDevtoolsPanel />,
             },
           ]}
         />
@@ -26,7 +39,7 @@ const Document = ({ children }: PropsWithChildren) => {
   );
 };
 
-const Route = createRootRoute({
+const Route = createRootRouteWithContext<RouterContext>()({
   head: () => ({
     meta: [
       {
