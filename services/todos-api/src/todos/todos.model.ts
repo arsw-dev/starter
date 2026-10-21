@@ -1,6 +1,6 @@
 import { defineModel } from '#/db/db.ts';
 
-const todos = defineModel('todos', (field) => ({
+const todosModel = defineModel('todos', (field) => ({
   title: field.text({
     notBlank: true,
     maxLength: 200,
@@ -28,6 +28,6 @@ const todos = defineModel('todos', (field) => ({
 }));
 
 // drizzle-kit only finds a table exported on its own
-const todosTable = todos.table;
+const todosTable = todosModel.table;
 
-export { todos, todosTable };
+export { todosModel, todosTable };

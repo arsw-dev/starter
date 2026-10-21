@@ -1,6 +1,8 @@
-import { createApp } from './app.ts';
-import { todosRouter } from './todos/todos.router.ts';
+import { createApp, registerRoutes } from './app.ts';
 
-const app = createApp().route('/todos', todosRouter);
+const app = registerRoutes(createApp());
+
+type AppType = typeof app;
 
 export default app;
+export type { AppType };
