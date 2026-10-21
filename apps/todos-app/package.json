@@ -31,6 +31,7 @@
     "@types/react": "catalog:app",
     "@types/react-dom": "catalog:app",
     "@vitejs/plugin-react": "catalog:app",
+    "oxc-transform-react": "catalog:app",
     "tailwindcss": "catalog:app",
     "vite-plus": "catalog:tooling",
     "wrangler": "catalog:tooling"

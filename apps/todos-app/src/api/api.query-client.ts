@@ -6,12 +6,9 @@ import {
 
 import { useAppStatus } from '#/stores/app-status.ts';
 
-import { ApiError } from './api.error.ts';
+import { ApiError, isServerError } from './api.error.ts';
 
 const RETRIES = 3;
-
-const isServerError = (error: Error): error is ApiError =>
-  error instanceof ApiError && error.status >= 500;
 
 // A refused request (4xx) fails the same way every time; anything else may
 // pass on a later try. Never on the server, where a retry would hold the

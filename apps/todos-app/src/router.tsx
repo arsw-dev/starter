@@ -4,6 +4,7 @@ import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query
 import { ApiError } from './api/api.error.ts';
 import { createQueryClient } from './api/api.query-client.ts';
 import { NotFound } from './components/not-found.tsx';
+import { RouteError } from './components/route-error.tsx';
 import { routeTree } from './routeTree.gen.ts';
 
 import type { QueryClient } from '@tanstack/react-query';
@@ -20,6 +21,7 @@ const getRouter = () => {
     context: {
       queryClient,
     } satisfies RouterContext,
+    defaultErrorComponent: RouteError,
     defaultNotFoundComponent: NotFound,
     defaultPreload: 'intent',
     // Query decides what's fresh, so a preload always asks it

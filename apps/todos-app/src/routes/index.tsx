@@ -35,6 +35,14 @@ function NewTodo() {
     }),
   );
 
+  // What todos-api said was wrong with the title, in its own words
+  const problems =
+    create.error instanceof ApiError
+      ? create.error.issues
+          .filter((issue) => issue.path === 'title')
+          .map((issue) => issue.message)
+      : [];
+
   return (
     <form
       className="flex flex-col gap-2"
@@ -67,8 +75,8 @@ function NewTodo() {
       </div>
       {create.isError && (
         <p className="text-sm text-red-600" role="alert">
-          {create.error instanceof ApiError && create.error.status === 422
-            ? 'A todo needs a title, up to 200 characters.'
+          {problems.length > 0
+            ? problems.join(' ')
             : "Couldn't add it. Try again."}
         </p>
       )}

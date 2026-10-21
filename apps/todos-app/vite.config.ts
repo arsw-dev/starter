@@ -19,7 +19,11 @@ export default defineConfig(({ mode }) => ({
             },
           }),
           tanstackStart(),
-          react(),
+          // The React Compiler memoizes components and hooks at build time,
+          // through Oxc rather than Babel
+          react({
+            compiler: true,
+          }),
           tailwindcss(),
         ],
 }));

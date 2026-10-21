@@ -1,5 +1,5 @@
-import { ApiError } from './api.error.ts';
 import { api } from './api.server.ts';
+import { unwrap } from './api.unwrap.ts';
 
 import type { ApiClient } from './api.server.ts';
 import type { ClientResponse } from 'hono/client';
@@ -15,7 +15,7 @@ type Success<TResponse extends AnyResponse> = Extract<
   }
 >;
 
-// A 204 has no body to read
+// A 204 has none
 type BodyOf<TSuccess> = TSuccess extends {
   status: 204;
 }
@@ -40,14 +40,9 @@ const call =
     request: (client: ApiClient, data: TData) => Promise<TResponse>,
   ) =>
   async ({ data }: HandlerInput<TData>): Promise<Body<TResponse>> => {
-    const response = await request(api(), data);
+    const body = await unwrap(await request(api(), data));
 
-    if (!response.ok) throw new ApiError(response.status);
-
-    const body: unknown =
-      response.status === 204 ? undefined : await response.json();
-
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the check above leaves only the success members, which TypeScript doesn't narrow a type parameter to
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- unwrap returns only a success's body, and hc's types say what that is
     return body as Body<TResponse>;
   };
 

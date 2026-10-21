@@ -4,8 +4,13 @@ import { hc } from 'hono/client';
 
 import type { AppType } from '@arsw/todos-api/client';
 
+// A service binding ignores the host: hc only needs a URL to build paths on.
+// .internal never resolves publicly, so a request that leaked past the binding
+// would reach nothing
+const ORIGIN = 'https://todos.api.internal';
+
 const api = createServerOnlyFn(() =>
-  hc<AppType>('https://todos.api.internal', {
+  hc<AppType>(ORIGIN, {
     fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
       const request = new Request(input, init);
       const response = await env.TODOS_API.fetch(request);
