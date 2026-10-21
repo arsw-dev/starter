@@ -8,7 +8,7 @@ const listTodos = createRoute({
   method: 'get',
   path: '/',
   responses: {
-    200: json(z.array(todos.read), 'Every todo'),
+    200: json(z.array(todos.readSchema), 'Every todo'),
   },
 });
 
