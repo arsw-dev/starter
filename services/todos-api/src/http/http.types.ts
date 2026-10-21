@@ -19,4 +19,4 @@ type ErrorBody = z.infer<typeof errorSchema>;
 type Issue = z.infer<typeof issueSchema>;
 type InvalidRequest = z.infer<typeof invalidSchema>;
 
-export type { AppEnv, ErrorBody, Issue, InvalidRequest };
+export type { AppEnv, ErrorBody, InvalidRequest, Issue };
