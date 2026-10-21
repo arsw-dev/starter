@@ -91,7 +91,7 @@ describe('types', () => {
   });
 
   it('types each schema from access, optional and default', () => {
-    expectTypeOf<z.infer<typeof todos.read>>().toEqualTypeOf<{
+    expectTypeOf<z.infer<typeof todos.readSchema>>().toEqualTypeOf<{
       id: string;
       title: string;
       done: boolean;
@@ -102,14 +102,14 @@ describe('types', () => {
       updatedAt: string;
     }>();
 
-    expectTypeOf<z.infer<typeof todos.create>>().toEqualTypeOf<{
+    expectTypeOf<z.infer<typeof todos.createSchema>>().toEqualTypeOf<{
       title: string;
       priority?: 'low' | 'medium' | 'high' | undefined;
       estimate?: number | null | undefined;
       dueDate?: string | null | undefined;
     }>();
 
-    expectTypeOf<z.infer<typeof todos.update>>().toEqualTypeOf<{
+    expectTypeOf<z.infer<typeof todos.updateSchema>>().toEqualTypeOf<{
       title?: string | undefined;
       done?: boolean | undefined;
       priority?: 'low' | 'medium' | 'high' | undefined;
@@ -242,7 +242,7 @@ describe('the columns', () => {
     const query = drizzle(env.DB).select(todos.readColumns).from(todos.table);
 
     expectTypeOf<Awaited<ReturnType<typeof query.get>>>().toEqualTypeOf<
-      z.infer<typeof todos.read> | undefined
+      z.infer<typeof todos.readSchema> | undefined
     >();
     expect(query.toSQL().sql).toBe(
       'select "id", "title", "done", "priority", "estimate", "due_date", "created_at", "updated_at" from "todos"',
@@ -252,7 +252,7 @@ describe('the columns', () => {
 
 describe('the schemas', () => {
   it('labels messages from the key', () => {
-    const result = todos.create.safeParse({
+    const result = todos.createSchema.safeParse({
       title: 'Write it',
       dueDate: 'tomorrow',
     });
@@ -263,11 +263,11 @@ describe('the schemas', () => {
   });
 
   it('refuses an empty update, and keys no field takes', () => {
-    expect(todos.update.safeParse({}).error?.issues[0]?.message).toBe(
+    expect(todos.updateSchema.safeParse({}).error?.issues[0]?.message).toBe(
       'Send at least one field to update',
     );
     expect(
-      todos.create.safeParse({
+      todos.createSchema.safeParse({
         title: 'Write it',
         done: true,
       }).success,
@@ -276,7 +276,7 @@ describe('the schemas', () => {
 
   it('parses an update to exactly what was sent, with no defaults', () => {
     expect(
-      todos.update.parse({
+      todos.updateSchema.parse({
         title: ' Ship it ',
       }),
     ).toEqual({
@@ -288,14 +288,14 @@ describe('the schemas', () => {
     const id = crypto.randomUUID();
 
     expect(
-      todos.params.parse({
+      todos.paramsSchema.parse({
         id: id.toUpperCase(),
       }),
     ).toEqual({
       id,
     });
     expect(
-      todos.params.safeParse({
+      todos.paramsSchema.safeParse({
         id: 'not-a-uuid',
       }).error?.issues[0]?.message,
     ).toBe('Id must be a uuid');
