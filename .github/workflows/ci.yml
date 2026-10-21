@@ -44,3 +44,15 @@ jobs:
       - name: Test
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm exec vp test
+      # Each API's committed document matches its routes, so a change to an API
+      # arrives with the change to its contract
+      - name: OpenAPI Documents
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          pnpm --recursive --if-present run openapi
+          if [ -n "$(git status --porcelain -- '*openapi.json')" ]; then
+            echo "Run pnpm openapi in each API and commit its openapi.json:"
+            git status --short -- '*openapi.json'
+            git diff -- '*openapi.json'
+            exit 1
+          fi

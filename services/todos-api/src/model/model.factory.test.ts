@@ -1,3 +1,4 @@
+import { OpenAPIHono, createRoute } from '@hono/zod-openapi';
 import { env } from 'cloudflare:workers';
 import { getTableColumns } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
@@ -299,5 +300,56 @@ describe('the schemas', () => {
         id: 'not-a-uuid',
       }).error?.issues[0]?.message,
     ).toBe('Id must be a uuid');
+  });
+});
+
+describe('the document', () => {
+  // A refine has no JSON Schema form, so these reach the document only by
+  // what the factory declares itself
+  it('says what the refines check: a length, and an update not being empty', () => {
+    const app = new OpenAPIHono().openapi(
+      createRoute({
+        method: 'patch',
+        path: '/',
+        request: {
+          body: {
+            content: {
+              'application/json': {
+                schema: todos.updateSchema,
+              },
+            },
+          },
+        },
+        responses: {
+          204: {
+            description: 'Updated',
+          },
+        },
+      }),
+      (c) => c.body(null, 204),
+    );
+
+    const document = app.getOpenAPI31Document({
+      openapi: '3.1.0',
+      info: {
+        title: 'Test',
+        version: '1',
+      },
+    });
+
+    expect(document.paths?.['/']?.patch?.requestBody).toMatchObject({
+      content: {
+        'application/json': {
+          schema: {
+            minProperties: 1,
+            properties: {
+              title: {
+                maxLength: 200,
+              },
+            },
+          },
+        },
+      },
+    });
   });
 });

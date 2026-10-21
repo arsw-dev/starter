@@ -2,3 +2,10 @@
 pnpm --recursive --if-present run types
 vp check
 vp test
+# Each API's document, regenerated: a change not yet staged fails the commit
+pnpm --recursive --if-present run openapi
+if ! git diff --quiet -- '*openapi.json'; then
+  echo "An OpenAPI document changed: stage it and commit again"
+  git diff --stat -- '*openapi.json'
+  exit 1
+fi
