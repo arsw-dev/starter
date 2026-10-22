@@ -149,7 +149,8 @@ jobs:
             if npm view "$name@$version" version >/dev/null 2>&1; then
               echo "$name@$version is already on npm"
             else
-              npm stage publish "release/$tarball" --access public
+              # ./ makes it a path: npm reads release/<file> as a GitHub repo
+              npm stage publish "./release/$tarball" --access public
             fi
 
             if gh release view "$folder@$version" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
