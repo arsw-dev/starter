@@ -1,6 +1,6 @@
 {
   "name": "@arsw/vite-config",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Vite+ settings shared across repos: formatting, lint with the guardrails rules, and library builds",
   "license": "MIT",
   "repository": {
@@ -38,12 +38,6 @@
     "vite-plus": "catalog:tooling"
   },
   "peerDependencies": {
-    "typescript": ">=7.0.0-0",
     "vite-plus": "^1.2.0"
-  },
-  "peerDependenciesMeta": {
-    "typescript": {
-      "optional": true
-    }
   }
 }
