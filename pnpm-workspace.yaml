@@ -21,6 +21,7 @@ catalogs:
   # Front-end dependencies
   app:
     '@cloudflare/vite-plugin': 1.64.0
+    '@hookform/resolvers': 5.9.2
     '@tailwindcss/vite': 4.3.3
     '@tanstack/devtools-vite': 0.8.5
     '@tanstack/react-devtools': 0.10.13
@@ -36,6 +37,7 @@ catalogs:
     oxc-transform-react: 0.152.0
     react: 19.3.1
     react-dom: 19.3.1
+    react-hook-form: 7.90.0
     tailwindcss: 4.3.3
     zustand: 5.0.15
 

@@ -2,9 +2,18 @@ import { noop, useMutation, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { Suspense, useState } from 'react';
 
+import {
+  Form,
+  FormInput,
+  FormSelect,
+  useFormMutation,
+} from '@arsw/hook-form-query';
 import { ApiError } from '@arsw/start-hono';
 
 import { todosApi } from '#/todos/todos.api.ts';
+import { createTodoSchema } from '#/todos/todos.forms.ts';
+
+import type { CreateTodo } from '#/todos/todos.forms.ts';
 
 export const Route = createFileRoute('/')({
   component: RouteComponent,
@@ -25,63 +34,80 @@ function RouteComponent() {
   );
 }
 
-function NewTodo() {
-  const [title, setTitle] = useState('');
+// What todos-api said was wrong, field by field, where a toast will show it
+const describeFailure = (error: Error) =>
+  error instanceof ApiError && error.issues.length > 0
+    ? error.issues.map((issue) => `${issue.path}: ${issue.message}`).join(' · ')
+    : "Couldn't add it. Try again.";
 
-  const create = useMutation(
-    todosApi.create({
+function NewTodo() {
+  const [failure, setFailure] = useState<string>();
+
+  const { form, formId, onSubmit, isSubmitting } = useFormMutation({
+    schema: createTodoSchema,
+    mutation: todosApi.create({
       onSuccess: () => {
-        setTitle('');
+        form.reset();
+        setFailure(undefined);
+      },
+      onError: (error) => {
+        setFailure(describeFailure(error));
       },
     }),
-  );
-
-  // What todos-api said was wrong with the title, in its own words
-  const problems =
-    create.error instanceof ApiError
-      ? create.error.issues
-          .filter((issue) => issue.path === 'title')
-          .map((issue) => issue.message)
-      : [];
+  });
 
   return (
-    <form
-      className="flex flex-col gap-2"
-      onSubmit={(event) => {
-        event.preventDefault();
-        create.mutate({
-          title,
-        });
-      }}
+    <Form
+      className="flex flex-col gap-4"
+      id={formId}
+      form={form}
+      onSubmit={onSubmit}
+      isSubmitting={isSubmitting}
     >
-      <div className="flex gap-2">
-        <input
-          className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none"
-          aria-label="New todo"
-          placeholder="What needs doing?"
-          required
-          maxLength={200}
-          value={title}
-          onChange={(event) => {
-            setTitle(event.target.value);
-          }}
+      <FormInput<CreateTodo>
+        name="title"
+        label="Title"
+        placeholder="What needs doing?"
+      />
+      <div className="grid grid-cols-3 gap-4">
+        <FormSelect<CreateTodo>
+          name="priority"
+          label="Priority"
+          placeholder="Default"
+          options={[
+            {
+              value: 'low',
+              label: 'Low',
+            },
+            {
+              value: 'medium',
+              label: 'Medium',
+            },
+            {
+              value: 'high',
+              label: 'High',
+            },
+          ]}
         />
-        <button
-          className="rounded-md bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-700 disabled:opacity-50"
-          type="submit"
-          disabled={create.isPending}
-        >
-          Add
-        </button>
+        <FormInput<CreateTodo>
+          name="estimate"
+          label="Estimate"
+          description="Hours"
+        />
+        <FormInput<CreateTodo> name="dueDate" label="Due" type="date" />
       </div>
-      {create.isError && (
+      <button
+        className="self-start rounded-md bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-700"
+        type="submit"
+      >
+        Add
+      </button>
+      {failure && (
         <p className="text-sm text-red-600" role="alert">
-          {problems.length > 0
-            ? problems.join(' ')
-            : "Couldn't add it. Try again."}
+          {failure}
         </p>
       )}
-    </form>
+    </Form>
   );
 }
 
@@ -98,7 +124,18 @@ function Todos() {
     <ul className="divide-y divide-slate-200 rounded-md border border-slate-200">
       {todos.map((todo) => (
         <li key={todo.id} className="flex items-center gap-4 px-4 py-3">
-          <span className="flex-1 text-slate-900">{todo.title}</span>
+          <div className="flex flex-1 flex-col">
+            <span className="text-slate-900">{todo.title}</span>
+            <span className="text-sm text-slate-500">
+              {[
+                todo.priority,
+                todo.estimate && `${todo.estimate}h`,
+                todo.dueDate && `due ${todo.dueDate}`,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </span>
+          </div>
           <button
             className="text-sm text-slate-500 hover:text-red-600 disabled:opacity-50"
             type="button"

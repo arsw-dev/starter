@@ -72,7 +72,10 @@ type MutationDefinition<TFn extends AnyServerFn> = (<TOnMutateResult = unknown>(
   Error,
   VariablesOf<TFn>,
   TOnMutateResult
->) & {
+> & {
+  // Always set, from the definition's path
+  mutationKey: QueryKey;
+}) & {
   mutationKey: QueryKey;
 };
 

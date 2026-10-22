@@ -115,6 +115,9 @@ export default defineConfig({
       // For the old JSX transform, which needed React in scope; react-jsx
       // imports what it needs
       'react/react-in-jsx-scope': 'off',
+      // The React Compiler memoizes a context's value, as it does everything
+      // else, so building one inline costs nothing
+      'react/jsx-no-constructed-context-values': 'off',
     },
     overrides: [
       {

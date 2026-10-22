@@ -10,7 +10,9 @@
     "build": "vp build"
   },
   "dependencies": {
+    "@arsw/hook-form-query": "workspace:*",
     "@arsw/start-hono": "workspace:*",
+    "@hookform/resolvers": "catalog:app",
     "@tanstack/react-query": "catalog:app",
     "@tanstack/react-router": "catalog:app",
     "@tanstack/react-router-ssr-query": "catalog:app",
@@ -18,6 +20,8 @@
     "hono": "catalog:api",
     "react": "catalog:app",
     "react-dom": "catalog:app",
+    "react-hook-form": "catalog:app",
+    "zod": "catalog:shared",
     "zustand": "catalog:app"
   },
   "devDependencies": {
