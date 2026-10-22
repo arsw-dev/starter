@@ -21,6 +21,7 @@
     "react": "catalog:app",
     "react-dom": "catalog:app",
     "react-hook-form": "catalog:app",
+    "sonner": "catalog:app",
     "zod": "catalog:shared",
     "zustand": "catalog:app"
   },

@@ -1,6 +1,7 @@
 import { noop, useMutation, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { Suspense, useState } from 'react';
+import { Suspense } from 'react';
+import { toast } from 'sonner';
 
 import {
   Form,
@@ -34,24 +35,21 @@ function RouteComponent() {
   );
 }
 
-// What todos-api said was wrong, field by field, where a toast will show it
+// What todos-api said was wrong, field by field
 const describeFailure = (error: Error) =>
   error instanceof ApiError && error.issues.length > 0
     ? error.issues.map((issue) => `${issue.path}: ${issue.message}`).join(' · ')
     : "Couldn't add it. Try again.";
 
 function NewTodo() {
-  const [failure, setFailure] = useState<string>();
-
   const { form, formId, onSubmit, isSubmitting } = useFormMutation({
     schema: createTodoSchema,
     mutation: todosApi.create({
       onSuccess: () => {
         form.reset();
-        setFailure(undefined);
       },
       onError: (error) => {
-        setFailure(describeFailure(error));
+        toast.error(describeFailure(error));
       },
     }),
   });
@@ -102,11 +100,6 @@ function NewTodo() {
       >
         Add
       </button>
-      {failure && (
-        <p className="text-sm text-red-600" role="alert">
-          {failure}
-        </p>
-      )}
     </Form>
   );
 }
