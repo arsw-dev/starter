@@ -1,4 +1,4 @@
 {
   "extends": "@arsw/tsconfig/app",
-  "include": ["src"]
+  "include": ["src", "*.config.ts"]
 }

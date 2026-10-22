@@ -1,19 +1,49 @@
 {
   "name": "@arsw/vite-config",
-  "private": true,
+  "version": "0.1.0",
+  "description": "Vite+ settings shared across repos: formatting, lint with the guardrails rules, and library builds",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arsw-dev/starter.git",
+    "directory": "packages/vite-config"
+  },
+  "files": [
+    "dist",
+    "CHANGELOG.md"
+  ],
   "type": "module",
   "exports": {
     ".": "./src/main.ts"
   },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/main.d.mts",
+        "default": "./dist/main.mjs"
+      }
+    },
+    "access": "public"
+  },
+  "scripts": {
+    "build": "vp pack"
+  },
   "dependencies": {
-    "@arsw/guardrails": "workspace:*"
+    "@arsw/guardrails": "workspace:^"
   },
   "devDependencies": {
     "@arsw/tsconfig": "workspace:*",
     "@types/node": "catalog:tooling",
+    "typescript": "catalog:tooling",
     "vite-plus": "catalog:tooling"
   },
   "peerDependencies": {
-    "vite-plus": "catalog:tooling"
+    "typescript": ">=7.0.0-0",
+    "vite-plus": "^1.2.0"
+  },
+  "peerDependenciesMeta": {
+    "typescript": {
+      "optional": true
+    }
   }
 }

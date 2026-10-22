@@ -1,5 +1,7 @@
 import { fileURLToPath } from 'node:url';
 
+import { pack } from './pack.ts';
+
 import type { UserConfig } from 'vite-plus';
 
 // Formatting, one way in every repo
@@ -162,4 +164,4 @@ const lint = {
   ignorePatterns: ['**/worker-configuration.d.ts', '**/routeTree.gen.ts'],
 } satisfies NonNullable<UserConfig['lint']>;
 
-export { fmt, lint };
+export { fmt, lint, pack };
