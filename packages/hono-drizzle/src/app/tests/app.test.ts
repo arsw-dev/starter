@@ -9,7 +9,9 @@ import { json } from '#/http/http.schemas.ts';
 
 // What createApp wires up, checked once with routes of its own rather than
 // through every domain's: Hono calls the hooks, but registering them is ours
-const app = createApp()
+const app = createApp({
+  db: (bindings) => bindings.DB,
+})
   .openapi(
     createRoute({
       method: 'get',

@@ -17,6 +17,7 @@
     "openapi": "node scripts/openapi.ts"
   },
   "dependencies": {
+    "@arsw/hono-drizzle": "workspace:*",
     "@hono/zod-openapi": "catalog:api",
     "drizzle-orm": "catalog:api",
     "hono": "catalog:api",

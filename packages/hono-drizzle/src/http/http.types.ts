@@ -6,9 +6,10 @@ import type {
 } from './http.schemas.ts';
 import type { z } from '@hono/zod-openapi';
 
-// The app, as every router and handler sees it
+// The app, as every router and handler sees it. Its bindings are the Worker's
+// own, which wrangler types adds to Cloudflare.Env
 type AppEnv = {
-  Bindings: Env;
+  Bindings: Cloudflare.Env;
   Variables: {
     db: DB;
   };

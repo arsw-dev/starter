@@ -1,5 +1,11 @@
-import { createApp, registerRoutes } from './app/app.ts';
+import { createApp } from '@arsw/hono-drizzle';
 
-const app = registerRoutes(createApp());
+import { registerRoutes } from './app/app.ts';
+
+const app = registerRoutes(
+  createApp({
+    db: (env) => env.DB,
+  }),
+);
 
 export default app;

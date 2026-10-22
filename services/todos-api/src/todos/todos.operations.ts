@@ -1,10 +1,10 @@
 import { desc, eq } from 'drizzle-orm';
 
-import { NotFound } from '#/http/http.errors.ts';
+import { NotFound } from '@arsw/hono-drizzle';
 
 import { todosModel } from './todos.model.ts';
 
-import type { DB } from '#/db/db.ts';
+import type { DB } from '@arsw/hono-drizzle';
 import type { z } from '@hono/zod-openapi';
 
 const todosOps = {

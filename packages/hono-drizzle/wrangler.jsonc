@@ -1,0 +1,13 @@
+{
+  // Only for the tests, which run in workerd against a real D1: this package
+  // is never deployed
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "hono-drizzle-tests",
+  "compatibility_date": "2026-10-15",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "tests",
+    },
+  ],
+}
