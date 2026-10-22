@@ -1,0 +1,19 @@
+{
+  "name": "@arsw/vite-config",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/main.ts"
+  },
+  "dependencies": {
+    "@arsw/guardrails": "workspace:*"
+  },
+  "devDependencies": {
+    "@arsw/tsconfig": "workspace:*",
+    "@types/node": "catalog:tooling",
+    "vite-plus": "catalog:tooling"
+  },
+  "peerDependencies": {
+    "vite-plus": "catalog:tooling"
+  }
+}
