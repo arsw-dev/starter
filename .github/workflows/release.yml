@@ -1,12 +1,14 @@
 name: Release
 
 # A pull request merged into release is a release (RELEASING.md). Two jobs:
-# Package builds every package whose version npm doesn't have yet, from the
+# Package builds every package whose version hasn't been released yet, from the
 # merged commit with no credentials. Publish, once a reviewer approves it in the
-# npm-publish environment, publishes those tarballs, then tags each version and
-# creates its GitHub Release. No token is stored: each package trusts this
-# workflow's runs in that environment (trusted publishing), and npm adds
-# provenance
+# npm-publish environment, stages those tarballs on npm, then tags each version
+# and creates its GitHub Release. A staged version goes live only once a
+# maintainer approves it on npm with 2FA, so neither this workflow nor the
+# GitHub account behind it can publish alone. No token is stored: each package
+# trusts this workflow's runs in that environment (trusted publishing), and npm
+# adds provenance
 
 on:
   push:
@@ -58,11 +60,11 @@ jobs:
       - name: Build
         run: pnpm --filter "./packages/*" --if-present run build
 
-      # Each package whose version isn't fully released, on npm and as a GitHub
-      # Release: its tarball (pnpm pack writes the workspace: and catalog:
-      # versions out) and its changelog section, the release's notes. A version
-      # npm has but GitHub doesn't is packed again, so a re-run finishes its
-      # release. In folder order, which puts guardrails before vite-config,
+      # Each package whose version has no GitHub Release yet: its tarball (pnpm
+      # pack writes the workspace: and catalog: versions out) and its changelog
+      # section, the release's notes. The Release is made once the version is
+      # staged, so one waiting for approval on npm isn't staged again, which npm
+      # refuses. In folder order, which puts guardrails before vite-config,
       # which depends on it
       - name: Pack
         id: pack
@@ -82,8 +84,7 @@ jobs:
               continue
             fi
 
-            if npm view "$name@$version" version >/dev/null 2>&1 \
-              && gh release view "$folder@$version" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            if gh release view "$folder@$version" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
               echo "$name@$version is already released"
               continue
             fi
@@ -138,9 +139,9 @@ jobs:
           name: release
           path: release
 
-      # A version npm or GitHub already has is skipped, so a re-run after a
-      # failure finishes the job
-      - name: Publish, Tag and Release
+      # A version npm already has live is skipped, so a re-run after a failure
+      # finishes the job
+      - name: Stage, Tag and Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -148,7 +149,7 @@ jobs:
             if npm view "$name@$version" version >/dev/null 2>&1; then
               echo "$name@$version is already on npm"
             else
-              npm publish "release/$tarball" --access public
+              npm stage publish "release/$tarball" --access public
             fi
 
             if gh release view "$folder@$version" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
