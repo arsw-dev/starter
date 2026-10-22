@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "todos-app",
+  "main": "@tanstack/react-start/server-entry",
+  "compatibility_date": "2026-10-15",
+  "services": [
+    {
+      "binding": "TODOS_API",
+      "service": "todos-api",
+    },
+  ],
+}

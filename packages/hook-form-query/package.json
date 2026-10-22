@@ -1,0 +1,28 @@
+{
+  "name": "@arsw/hook-form-query",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#/*": "./src/*"
+  },
+  "exports": {
+    ".": "./src/main.ts"
+  },
+  "devDependencies": {
+    "@arsw/tsconfig": "workspace:*",
+    "@hookform/resolvers": "catalog:app",
+    "@tanstack/react-query": "catalog:app",
+    "@types/react": "catalog:app",
+    "react": "catalog:app",
+    "react-hook-form": "catalog:app",
+    "vite-plus": "catalog:tooling",
+    "zod": "catalog:shared"
+  },
+  "peerDependencies": {
+    "@hookform/resolvers": "catalog:app",
+    "@tanstack/react-query": "catalog:app",
+    "react": "catalog:app",
+    "react-hook-form": "catalog:app",
+    "zod": "catalog:shared"
+  }
+}

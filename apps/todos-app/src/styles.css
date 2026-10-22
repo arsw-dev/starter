@@ -1,0 +1,4 @@
+@import 'tailwindcss';
+
+/* Tailwind skips node_modules, so a package's classes are named here */
+@source '../node_modules/@arsw/hook-form-query/src';
