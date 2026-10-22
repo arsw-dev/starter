@@ -7,8 +7,8 @@
     "dev": "pnpm --recursive --parallel run dev"
   },
   "devDependencies": {
-    "@arsw/guardrails": "workspace:*",
     "@arsw/tsconfig": "workspace:*",
+    "@arsw/vite-config": "workspace:*",
     "@types/node": "catalog:tooling",
     "typescript": "catalog:tooling",
     "vite-plus": "catalog:tooling"
