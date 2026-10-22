@@ -16,8 +16,6 @@ jobs:
   ci:
     # The check to read before merging; main's ruleset requires it
     name: CI Result
-    # GitHub's runners only: on a public repo, a fork's pull request would run
-    # its code on any self-hosted machine
     runs-on: ubuntu-latest
     env:
       # The install's prepare would set up git hooks, unused here
