@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "prepare": "vp config --no-agent"
+    "prepare": "vp config --no-agent",
+    "dev": "pnpm --recursive --parallel run dev"
   },
   "devDependencies": {
     "@arsw/guardrails": "workspace:*",

@@ -6,6 +6,7 @@ import {
   createRootRouteWithContext,
 } from '@tanstack/react-router';
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools';
+import { Toaster } from 'sonner';
 
 import { AppFailure } from '#/components/app-failure.tsx';
 
@@ -23,6 +24,7 @@ const Document = ({ children }: PropsWithChildren) => {
       <body>
         {children}
         <AppFailure />
+        <Toaster />
         <TanStackDevtools
           plugins={[
             {

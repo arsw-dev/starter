@@ -20,7 +20,9 @@ const getAll = createServerFn({
 }).handler(call((client) => client.todos.$get()));
 
 // The input is typed, not checked: todos-api checks it, and its 422 comes back
-// as an ApiError
+// as an ApiError. A server function that reaches its own data (KV, a secret,
+// another service) rather than an API checks its input, with a Zod schema in
+// .validator()
 const create = createServerFn({
   method: 'POST',
 })
