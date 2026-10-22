@@ -7,8 +7,11 @@ import { field } from './model.fields.ts';
 
 import type { Constraint } from './model.constraints.ts';
 import type { Access, FieldOptions } from './model.fields.ts';
-import type { HasDefault, NotNull } from 'drizzle-orm';
-import type { SQLiteColumnBuilderBase } from 'drizzle-orm/sqlite-core';
+import type { BuildColumns, HasDefault, NotNull } from 'drizzle-orm';
+import type {
+  SQLiteColumnBuilderBase,
+  SQLiteTableWithColumns,
+} from 'drizzle-orm/sqlite-core';
 
 // Only what defineModel calls on a column: Drizzle's own builder types differ
 // per kind
@@ -174,6 +177,47 @@ const toCheck = (
   );
 };
 
+// The columns every model has, around its own fields
+const baseColumns = (name: (key: string) => string) => ({
+  pk: integer('pk').primaryKey(),
+  id: text('id')
+    .notNull()
+    .unique()
+    .$defaultFn(() => crypto.randomUUID()),
+  createdAt: text(name('createdAt')).notNull().default(now()),
+  updatedAt: text(name('updatedAt')).notNull().default(now()).$onUpdate(now),
+});
+
+type BaseColumns = ReturnType<typeof baseColumns>;
+
+// A model's table, as Drizzle types it. Named, because Drizzle's table and
+// column types refer to each other, which a declaration can't spell out
+type Table<TName extends string, F extends Fields> = SQLiteTableWithColumns<{
+  name: TName;
+  schema: undefined;
+  columns: BuildColumns<
+    TName,
+    Omit<BaseColumns, 'createdAt' | 'updatedAt'> &
+      Builders<F> &
+      Pick<BaseColumns, 'createdAt' | 'updatedAt'>,
+    'sqlite'
+  >;
+  dialect: 'sqlite';
+}>;
+
+// Every column, as Drizzle has them, and the ones a read returns
+type Columns<TName extends string, F extends Fields> = Table<
+  TName,
+  F
+>['_']['columns'];
+
+type ReadColumns<TName extends string, F extends Fields> = Pick<
+  Columns<TName, F>,
+  'id' | 'createdAt' | 'updatedAt'
+> & {
+  [K in KeysWith<F, 'read'>]: Columns<TName, F>[K & keyof Columns<TName, F>];
+};
+
 const createDefineModel = ({ casing = 'snake_case' }: ModelOptions = {}) => {
   const name = (key: string) => toColumnName(casing, key);
 
@@ -191,20 +235,16 @@ const createDefineModel = ({ casing = 'snake_case' }: ModelOptions = {}) => {
       withOptions(f.column(name(key)), f.options),
     );
 
-    const table = sqliteTable(
+    const { pk, id, createdAt, updatedAt } = baseColumns(name);
+
+    const table: Table<TName, F> = sqliteTable(
       tableName,
       {
-        pk: integer('pk').primaryKey(),
-        id: text('id')
-          .notNull()
-          .unique()
-          .$defaultFn(() => crypto.randomUUID()),
+        pk,
+        id,
         ...builders,
-        createdAt: text(name('createdAt')).notNull().default(now()),
-        updatedAt: text(name('updatedAt'))
-          .notNull()
-          .default(now())
-          .$onUpdate(now),
+        createdAt,
+        updatedAt,
       },
       () => [
         toCheck('id', isUuid),
@@ -218,10 +258,10 @@ const createDefineModel = ({ casing = 'snake_case' }: ModelOptions = {}) => {
 
     // Every column, as Drizzle has them, and only the ones readSchema describes:
     // selecting with readColumns keeps pk and unread fields in the database
-    const columns = getTableColumns(table);
+    const columns: Columns<TName, F> = getTableColumns(table);
     const byKey: Record<string, unknown> = columns;
 
-    const readColumns = {
+    const readColumns: ReadColumns<TName, F> = {
       id: columns.id,
       ...mapFields<{
         [K in KeysWith<F, 'read'>]: (typeof columns)[K & keyof typeof columns];

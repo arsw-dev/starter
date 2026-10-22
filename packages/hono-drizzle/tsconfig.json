@@ -1,0 +1,7 @@
+{
+  "extends": "@arsw/tsconfig/worker",
+  "compilerOptions": {
+    "types": ["node", "@cloudflare/vitest-plugin/types"]
+  },
+  "include": ["src", "worker-configuration.d.ts", "*.config.ts"]
+}

@@ -10,6 +10,7 @@ new repos start from it, and it's the reference for how they're built.
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `services/todos-api`       | A Worker: a CRUD API on [Hono](https://hono.dev) with OpenAPI routes, and [D1](https://developers.cloudflare.com/d1/) through [Drizzle](https://orm.drizzle.team)                           |
 | `apps/todos-app`           | A Worker: a [TanStack Start](https://tanstack.com/start) front end, reaching todos-api over a service binding                                                                               |
+| `packages/hono-drizzle`    | An API on Hono and D1: `createApp`, one error shape, and models that give a Drizzle table and its Zod schemas from one list of fields                                                       |
 | `packages/start-hono`      | A front end's way to one of its Hono APIs: typed calls over the binding, `ApiError`, `defineApi` for query and mutation options, the QueryClient's defaults, SSR and CSRF                   |
 | `packages/hook-form-query` | Forms: [React Hook Form](https://react-hook-form.com), [Zod](https://zod.dev) and [TanStack Query](https://tanstack.com/query), with schema helpers, `useFormMutation` and field components |
 | `packages/vite-config`     | The formatting and lint settings every repo shares, guardrails included                                                                                                                     |
@@ -62,11 +63,12 @@ and CI runs the same checks on each.
   copy from: one model, its operations and routes, and the page that lists,
   creates and deletes.
 - Take the shared packages from npm rather than keeping copies: delete
-  `packages/guardrails`, `packages/vite-config`, `packages/start-hono` and
-  `packages/hook-form-query`, with `.github/workflows/release.yml` and
-  `.github/workflows/from-main.yml`, and depend on `@arsw/vite-config`,
-  `@arsw/start-hono` and `@arsw/hook-form-query` by version instead of
-  `workspace:*`. Keep `packages/tsconfig`, which isn't published.
+  `packages/guardrails`, `packages/vite-config`, `packages/hono-drizzle`,
+  `packages/start-hono` and `packages/hook-form-query`, with
+  `.github/workflows/release.yml` and `.github/workflows/from-main.yml`, and
+  depend on `@arsw/vite-config`, `@arsw/hono-drizzle`, `@arsw/start-hono` and
+  `@arsw/hook-form-query` by version instead of `workspace:*`. Keep
+  `packages/tsconfig`, which isn't published.
 - Before the API's first deploy, create its D1 database
   (`wrangler d1 create <name>`) and set its `database_id` in `wrangler.jsonc`.
   The API has no public URL (`workers_dev: false`): only its app's binding
@@ -74,10 +76,10 @@ and CI runs the same checks on each.
 
 ## Releasing
 
-`guardrails`, `vite-config`, `start-hono` and `hook-form-query` are published to
-npm as `@arsw/<name>`. A pull request from `main` merged into `release` runs the
-release workflow, which stages each package whose version is new, for a
-maintainer to approve on npm.
+`guardrails`, `vite-config`, `hono-drizzle`, `start-hono` and `hook-form-query`
+are published to npm as `@arsw/<name>`. A pull request from `main` merged into
+`release` runs the release workflow, which stages each package whose version is
+new, for a maintainer to approve on npm.
 
 ## License
 

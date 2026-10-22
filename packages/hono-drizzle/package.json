@@ -1,0 +1,54 @@
+{
+  "name": "@arsw/hono-drizzle",
+  "version": "0.1.0",
+  "description": "A Hono API on Cloudflare Workers and D1: OpenAPI routes with one error shape, and Drizzle tables and Zod schemas from one model",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arsw-dev/starter.git",
+    "directory": "packages/hono-drizzle"
+  },
+  "files": [
+    "dist",
+    "CHANGELOG.md"
+  ],
+  "type": "module",
+  "imports": {
+    "#/*": "./src/*"
+  },
+  "exports": {
+    ".": "./src/main.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/main.d.mts",
+        "default": "./dist/main.mjs"
+      }
+    },
+    "access": "public"
+  },
+  "scripts": {
+    "prepare": "wrangler types",
+    "types": "wrangler types",
+    "build": "vp pack"
+  },
+  "devDependencies": {
+    "@arsw/tsconfig": "workspace:*",
+    "@arsw/vite-config": "workspace:*",
+    "@cloudflare/vitest-plugin": "catalog:tooling",
+    "@hono/zod-openapi": "catalog:api",
+    "@types/node": "catalog:tooling",
+    "drizzle-orm": "catalog:api",
+    "hono": "catalog:api",
+    "vite-plus": "catalog:tooling",
+    "wrangler": "catalog:tooling",
+    "zod": "catalog:shared"
+  },
+  "peerDependencies": {
+    "@hono/zod-openapi": "^1.6.3",
+    "drizzle-orm": "^0.45.4",
+    "hono": "^4.13.13",
+    "zod": "^4.6.7"
+  }
+}
