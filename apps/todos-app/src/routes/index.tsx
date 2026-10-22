@@ -41,7 +41,7 @@ const describeFailure = (error: Error) =>
     ? error.issues.map((issue) => `${issue.path}: ${issue.message}`).join(' · ')
     : "Couldn't add it. Try again.";
 
-function NewTodo() {
+const NewTodo = () => {
   const { form, formId, onSubmit, isSubmitting } = useFormMutation({
     schema: createTodoSchema,
     mutation: todosApi.create({
@@ -102,9 +102,9 @@ function NewTodo() {
       </button>
     </Form>
   );
-}
+};
 
-function Todos() {
+const Todos = () => {
   const { data: todos } = useSuspenseQuery(todosApi.getAll());
 
   const remove = useMutation(todosApi.delete());
@@ -145,4 +145,4 @@ function Todos() {
       ))}
     </ul>
   );
-}
+};

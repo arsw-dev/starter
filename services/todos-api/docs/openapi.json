@@ -163,6 +163,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Something failed on the server",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         }
       },
@@ -288,6 +298,16 @@
               }
             }
           },
+          "400": {
+            "description": "The body is not valid JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Cannot find todo",
             "content": {
@@ -304,6 +324,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Something failed on the server",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -342,6 +372,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Something failed on the server",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -415,6 +455,16 @@
                       "updatedAt"
                     ]
                   }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Something failed on the server",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -531,12 +581,32 @@
               }
             }
           },
+          "400": {
+            "description": "The body is not valid JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "422": {
             "description": "The create body is invalid",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Something failed on the server",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }

@@ -10,7 +10,8 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
 
 // Values as a schema gives them: primitives, dates, arrays and plain objects
 const isEqual = (a: unknown, b: unknown): boolean => {
-  if (Object.is(a, b)) {
+  // ===, where Object.is would tell -0 from 0
+  if (a === b) {
     return true;
   }
 

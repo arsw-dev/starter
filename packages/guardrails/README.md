@@ -15,6 +15,10 @@ rules don't cover. Each one reports what it found and how to fix it.
 | `arsw/object-wrap`      | One property per line in object literals and type literals                                                |
 | `arsw/sorted-exports`   | An export list in the order `sort-imports` gives an import's names                                        |
 
+Two rules assume a layout: `import-path` takes a package's `#/` to mean its
+`src/`, and `named-columns` checks the query builder's `select()` and
+`returning()`, not Drizzle's relational queries (`db.query.todos.findMany()`).
+
 ## Using it
 
 Through [`@arsw/vite-config`](https://www.npmjs.com/package/@arsw/vite-config),

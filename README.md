@@ -61,6 +61,17 @@ and CI runs the same checks on each.
 - Replace the `todos` domain in the API and the app with your own. It's there to
   copy from: one model, its operations and routes, and the page that lists,
   creates and deletes.
+- Take the shared packages from npm rather than keeping copies: delete
+  `packages/guardrails`, `packages/vite-config`, `packages/start-hono` and
+  `packages/hook-form-query`, with `RELEASING.md`,
+  `.github/workflows/release.yml` and `.github/workflows/from-main.yml`, and
+  depend on `@arsw/vite-config`, `@arsw/start-hono` and `@arsw/hook-form-query`
+  by version instead of `workspace:*`. Keep `packages/tsconfig`, which isn't
+  published.
+- Before the API's first deploy, create its D1 database
+  (`wrangler d1 create <name>`) and set its `database_id` in `wrangler.jsonc`.
+  The API has no public URL (`workers_dev: false`): only its app's binding
+  reaches it.
 
 ## Releasing
 

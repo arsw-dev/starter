@@ -59,12 +59,31 @@ package's first version can't come from the workflow. Once per package:
 
 4. **Release its first version** as above.
 
+## The first release
+
+`release` doesn't exist until the first release. Once every package has its
+placeholder and its trusted publisher (above), create it at `main`'s head.
+Creating it is a push to `release`, so it starts the release workflow:
+
+```sh
+gh api repos/arsw-dev/starter/git/refs -f ref=refs/heads/release \
+  -f sha="$(gh api repos/arsw-dev/starter/commits/main -q .sha)"
+```
+
+Then approve the run. Every release after it is a pull request from `main`.
+
 ## Good to know
 
 - **Forgot a version bump?** A package whose version npm already has is skipped,
   and when none is new, the workflow ends after packing.
-- **A run that fails** can be re-run once the cause is fixed: a version npm
-  already has, or a release GitHub already has, is skipped.
+- **A run that fails** can be re-run once the cause is fixed, its failed jobs or
+  all of them: a version npm already has is skipped, and one npm has without its
+  GitHub Release is packed again, so its tag and Release still come.
 - **One package depending on another** publishes after it: packages publish in
   folder order, which puts `guardrails` before `vite-config`.
 - **Before 1.0,** a minor version may break what it exports; a patch never does.
+- **A new version reaches other repos 3 days later.** A repo that holds releases
+  back (`minimumReleaseAge`) can take a version once it's 3 days old: add it
+  then, by its exact version. Before that, `pnpm add @arsw/<name>` takes the
+  newest version old enough, which right after a package's first release is its
+  empty placeholder.

@@ -33,6 +33,10 @@ jobs:
     outputs:
       count: ${{ steps.pack.outputs.count }}
 
+    env:
+      # The install's prepare would set up git hooks, unused here
+      VP_GIT_HOOKS: '0'
+
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -54,12 +58,16 @@ jobs:
       - name: Build
         run: pnpm --filter "./packages/*" --if-present run build
 
-      # Each package whose version npm doesn't have: its tarball (pnpm pack
-      # writes the workspace: and catalog: versions out) and its changelog
-      # section, the release's notes. In folder order, which puts guardrails
-      # before vite-config, which depends on it
+      # Each package whose version isn't fully released, on npm and as a GitHub
+      # Release: its tarball (pnpm pack writes the workspace: and catalog:
+      # versions out) and its changelog section, the release's notes. A version
+      # npm has but GitHub doesn't is packed again, so a re-run finishes its
+      # release. In folder order, which puts guardrails before vite-config,
+      # which depends on it
       - name: Pack
         id: pack
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p release
           count=0
@@ -74,8 +82,9 @@ jobs:
               continue
             fi
 
-            if npm view "$name@$version" version >/dev/null 2>&1; then
-              echo "$name@$version is already on npm"
+            if npm view "$name@$version" version >/dev/null 2>&1 \
+              && gh release view "$folder@$version" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              echo "$name@$version is already released"
               continue
             fi
 

@@ -13,8 +13,11 @@ const createTodoSchema = z.object({
     type: 'optional',
     values: ['low', 'medium', 'high'],
   }),
+  // As todos-api checks it, so the form says so before the API has to
   estimate: zNumber({
     type: 'optional',
+    refine: (number) =>
+      number.int('Must be a whole number').min(1, 'Must be at least 1'),
   }),
   // A calendar day, as the text todos-api takes
   dueDate: zString({

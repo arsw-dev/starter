@@ -155,13 +155,20 @@ describe('mutations', () => {
     });
   });
 
-  it("invalidates the definition's keys before the call site's onSuccess", async () => {
+  it("waits for the definition's invalidations before the call site's onSuccess", async () => {
     const client = new QueryClient();
     const order: string[] = [];
 
+    // An invalidation finishes once its refetch does, later than it starts
     vi.spyOn(client, 'invalidateQueries').mockImplementation(
       async (filters) => {
         order.push(`invalidate ${JSON.stringify(filters?.queryKey)}`);
+
+        await new Promise((resolve) => {
+          setTimeout(resolve, 10);
+        });
+
+        order.push('refetched');
       },
     );
 
@@ -177,7 +184,11 @@ describe('mutations', () => {
       },
     );
 
-    expect(order).toEqual(['invalidate ["todos","getAll"]', 'onSuccess']);
+    expect(order).toEqual([
+      'invalidate ["todos","getAll"]',
+      'refetched',
+      'onSuccess',
+    ]);
   });
 
   it("lets the call site's options replace the definition's", async () => {

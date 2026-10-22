@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vite-plus/test';
+import { describe, expect, it, vi } from 'vite-plus/test';
 
 import { ApiError } from '#/error.ts';
-import { unwrap } from '#/unwrap.ts';
+import { toApiError, unwrap } from '#/unwrap.ts';
 
 const json = (body: unknown, status: number) =>
   new Response(JSON.stringify(body), {
@@ -103,5 +103,31 @@ describe('unwrap', () => {
       status: 422,
       issues: [],
     });
+  });
+});
+
+describe('toApiError', () => {
+  it('keeps an ApiError as it is', () => {
+    const error = new ApiError('todos-api', 404);
+
+    expect(toApiError('todos-api', error)).toBe(error);
+  });
+
+  it('makes anything else a 502, with none of its message', () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const error = toApiError(
+      'todos-api',
+      new TypeError('fetch to https://api.internal/todos failed'),
+    );
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({
+      status: 502,
+      issues: [],
+      message: 'todos-api answered 502',
+    });
+    expect(log).toHaveBeenCalledOnce();
+
+    log.mockRestore();
   });
 });

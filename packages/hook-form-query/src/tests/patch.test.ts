@@ -105,6 +105,10 @@ describe('buildPatch', () => {
 });
 
 describe('isEqual', () => {
+  it('takes -0 and 0 as the same number', () => {
+    expect(isEqual(-0, 0)).toBe(true);
+  });
+
   it('compares dates by time', () => {
     expect(isEqual(new Date('2026-10-21'), new Date('2026-10-21'))).toBe(true);
     expect(isEqual(new Date('2026-10-21'), new Date('2026-10-22'))).toBe(false);
