@@ -1,6 +1,17 @@
 {
   "name": "@arsw/start-hono",
-  "private": true,
+  "version": "0.1.0",
+  "description": "A TanStack Start front end's way to its Hono API over a Cloudflare service binding: typed calls, query and mutation options, and errors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arsw-dev/starter.git",
+    "directory": "packages/start-hono"
+  },
+  "files": [
+    "dist",
+    "CHANGELOG.md"
+  ],
   "type": "module",
   "imports": {
     "#/*": "./src/*"
@@ -9,8 +20,25 @@
     ".": "./src/main.ts",
     "./server": "./src/server.ts"
   },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/main.d.mts",
+        "default": "./dist/main.mjs"
+      },
+      "./server": {
+        "types": "./dist/server.d.mts",
+        "default": "./dist/server.mjs"
+      }
+    },
+    "access": "public"
+  },
+  "scripts": {
+    "build": "vp pack"
+  },
   "devDependencies": {
     "@arsw/tsconfig": "workspace:*",
+    "@arsw/vite-config": "workspace:*",
     "@tanstack/react-query": "catalog:app",
     "@tanstack/react-router": "catalog:app",
     "@tanstack/react-router-ssr-query": "catalog:app",
@@ -22,10 +50,10 @@
     "vite-plus": "catalog:tooling"
   },
   "peerDependencies": {
-    "@tanstack/react-query": "catalog:app",
-    "@tanstack/react-router": "catalog:app",
-    "@tanstack/react-router-ssr-query": "catalog:app",
-    "@tanstack/react-start": "catalog:app",
-    "hono": "catalog:api"
+    "@tanstack/react-query": "^5.104.4",
+    "@tanstack/react-router": "^1.170.45",
+    "@tanstack/react-router-ssr-query": "^1.167.3",
+    "@tanstack/react-start": "^1.169.3",
+    "hono": "^4.13.13"
   }
 }

@@ -1,6 +1,17 @@
 {
   "name": "@arsw/hook-form-query",
-  "private": true,
+  "version": "0.1.0",
+  "description": "Forms on React Hook Form, Zod and TanStack Query: schema helpers for what a form gives, a hook that submits as a mutation, and field components",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arsw-dev/starter.git",
+    "directory": "packages/hook-form-query"
+  },
+  "files": [
+    "dist",
+    "CHANGELOG.md"
+  ],
   "type": "module",
   "imports": {
     "#/*": "./src/*"
@@ -8,8 +19,21 @@
   "exports": {
     ".": "./src/main.ts"
   },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/main.d.mts",
+        "default": "./dist/main.mjs"
+      }
+    },
+    "access": "public"
+  },
+  "scripts": {
+    "build": "vp pack"
+  },
   "devDependencies": {
     "@arsw/tsconfig": "workspace:*",
+    "@arsw/vite-config": "workspace:*",
     "@hookform/resolvers": "catalog:app",
     "@tanstack/react-query": "catalog:app",
     "@types/react": "catalog:app",
@@ -19,10 +43,10 @@
     "zod": "catalog:shared"
   },
   "peerDependencies": {
-    "@hookform/resolvers": "catalog:app",
-    "@tanstack/react-query": "catalog:app",
-    "react": "catalog:app",
-    "react-hook-form": "catalog:app",
-    "zod": "catalog:shared"
+    "@hookform/resolvers": "^5.9.2",
+    "@tanstack/react-query": "^5.104.4",
+    "react": "^19.3.1",
+    "react-hook-form": "^7.90.0",
+    "zod": "^4.6.7"
   }
 }

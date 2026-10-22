@@ -62,6 +62,12 @@ and CI runs the same checks on each.
   copy from: one model, its operations and routes, and the page that lists,
   creates and deletes.
 
+## Releasing
+
+`guardrails`, `vite-config`, `start-hono` and `hook-form-query` are published to
+npm as `@arsw/<name>`, by a pull request from `main` into `release`
+([RELEASING.md](RELEASING.md)).
+
 ## License
 
 [MIT](LICENSE)

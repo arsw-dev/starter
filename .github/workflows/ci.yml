@@ -43,6 +43,11 @@ jobs:
       - name: Test
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm exec vp test
+      # The published packages build, declarations included, so a pull request
+      # finds what would otherwise fail a release
+      - name: Pack
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm --filter "./packages/*" --if-present run build
       # Each API's committed document matches its routes, so a change to an API
       # arrives with the change to its contract
       - name: OpenAPI Documents

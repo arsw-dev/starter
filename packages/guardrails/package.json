@@ -1,12 +1,32 @@
 {
   "name": "@arsw/guardrails",
-  "private": true,
+  "version": "0.1.0",
+  "description": "oxlint rules for what its built-in rules don't cover: layout, exports, imports and comments",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arsw-dev/starter.git",
+    "directory": "packages/guardrails"
+  },
+  "files": [
+    "dist",
+    "CHANGELOG.md"
+  ],
   "type": "module",
   "imports": {
     "#/*": "./src/*"
   },
   "exports": {
     "./plugin": "./src/main.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      "./plugin": "./dist/main.mjs"
+    },
+    "access": "public"
+  },
+  "scripts": {
+    "build": "vp pack"
   },
   "devDependencies": {
     "@arsw/tsconfig": "workspace:*",
