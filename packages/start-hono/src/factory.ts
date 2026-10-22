@@ -1,5 +1,8 @@
 import { mutationOptions, queryOptions } from '@tanstack/react-query';
 
+import { MIN_DURATION, atLeast } from './min-duration.ts';
+
+import type { Timing } from './min-duration.ts';
 import type {
   DataTag,
   QueryKey,
@@ -27,7 +30,8 @@ type HasInput<TFn extends AnyServerFn> = [InputOf<TFn>] extends [undefined]
 type QueryDefaults<TData> = Omit<
   UnusedSkipTokenOptions<TData>,
   'queryKey' | 'queryFn' | 'select'
->;
+> &
+  Timing;
 
 // What a definition hands useQuery, useSuspenseQuery or prefetchQuery: the
 // key carries the data's type, so getQueryData and setQueryData know it too
@@ -52,7 +56,8 @@ type VariablesOf<TFn extends AnyServerFn> =
 type MutationOverrides<TData, TVariables, TOnMutateResult = unknown> = Omit<
   UseMutationOptions<TData, Error, TVariables, TOnMutateResult>,
   'mutationKey' | 'mutationFn'
->;
+> &
+  Timing;
 
 type MutationDefaults<TData, TVariables> = MutationOverrides<
   TData,
@@ -158,17 +163,21 @@ const keyFor = (baseKey: QueryKey, params: unknown): QueryKey =>
   params === undefined ? baseKey : [...baseKey, params];
 
 const bindQuery = ({ fn, defaults }: RuntimeDescriptor, baseKey: QueryKey) => {
+  const { minDuration = MIN_DURATION.query, ...options } = defaults;
   const getQueryKey = (params?: unknown) => keyFor(baseKey, params);
 
   const definition = (params?: unknown) =>
     queryOptions({
-      ...defaults,
+      ...options,
       queryKey: getQueryKey(params),
       queryFn: async ({ signal }) =>
-        fn({
-          data: params,
-          signal,
-        }),
+        atLeast(
+          minDuration,
+          fn({
+            data: params,
+            signal,
+          }),
+        ),
     });
 
   return Object.assign(definition, {
@@ -187,7 +196,7 @@ const bindMutation = (
   const { invalidates, ...options } = defaults;
 
   const definition = (overrides: MutationOverrides<unknown, unknown> = {}) => {
-    const merged = {
+    const { minDuration = MIN_DURATION.mutation, ...merged } = {
       ...options,
       ...overrides,
     };
@@ -196,9 +205,12 @@ const bindMutation = (
       ...merged,
       mutationKey,
       mutationFn: async (variables: unknown) =>
-        fn({
-          data: variables,
-        }),
+        atLeast(
+          minDuration,
+          fn({
+            data: variables,
+          }),
+        ),
       onSuccess: async (data, variables, onMutateResult, context) => {
         const stale = invalidates?.(data, variables) ?? [];
 
