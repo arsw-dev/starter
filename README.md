@@ -63,11 +63,10 @@ and CI runs the same checks on each.
   creates and deletes.
 - Take the shared packages from npm rather than keeping copies: delete
   `packages/guardrails`, `packages/vite-config`, `packages/start-hono` and
-  `packages/hook-form-query`, with `RELEASING.md`,
-  `.github/workflows/release.yml` and `.github/workflows/from-main.yml`, and
-  depend on `@arsw/vite-config`, `@arsw/start-hono` and `@arsw/hook-form-query`
-  by version instead of `workspace:*`. Keep `packages/tsconfig`, which isn't
-  published.
+  `packages/hook-form-query`, with `.github/workflows/release.yml` and
+  `.github/workflows/from-main.yml`, and depend on `@arsw/vite-config`,
+  `@arsw/start-hono` and `@arsw/hook-form-query` by version instead of
+  `workspace:*`. Keep `packages/tsconfig`, which isn't published.
 - Before the API's first deploy, create its D1 database
   (`wrangler d1 create <name>`) and set its `database_id` in `wrangler.jsonc`.
   The API has no public URL (`workers_dev: false`): only its app's binding
@@ -76,8 +75,9 @@ and CI runs the same checks on each.
 ## Releasing
 
 `guardrails`, `vite-config`, `start-hono` and `hook-form-query` are published to
-npm as `@arsw/<name>`, by a pull request from `main` into `release`
-([RELEASING.md](RELEASING.md)).
+npm as `@arsw/<name>`. A pull request from `main` merged into `release` runs the
+release workflow, which stages each package whose version is new, for a
+maintainer to approve on npm.
 
 ## License
 

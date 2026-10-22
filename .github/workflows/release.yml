@@ -1,6 +1,6 @@
 name: Release
 
-# A pull request merged into release is a release (RELEASING.md). Two jobs:
+# A pull request from main merged into release is a release. Two jobs:
 # Package builds every package whose version hasn't been released yet, from the
 # merged commit with no credentials. Publish, once a reviewer approves it in the
 # npm-publish environment, stages those tarballs on npm, then tags each version
@@ -149,7 +149,8 @@ jobs:
             if npm view "$name@$version" version >/dev/null 2>&1; then
               echo "$name@$version is already on npm"
             else
-              npm stage publish "release/$tarball" --access public
+              # ./ makes it a path: npm reads release/<file> as a GitHub repo
+              npm stage publish "./release/$tarball" --access public
             fi
 
             if gh release view "$folder@$version" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then

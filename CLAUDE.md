@@ -24,9 +24,9 @@ than fixing by hand what it can fix. What no check enforces:
 
 - **No build step.** TypeScript runs as it is: Node strips types, a Worker or an
   app is bundled only by its own deploy, and a package published to npm only by
-  the release workflow (`RELEASING.md`). So imports use `#/` subpaths with `.ts`
-  extensions, never directory imports, and no enums or other syntax that isn't
-  erasable.
+  the release workflow (`.github/workflows/release.yml`). So imports use `#/`
+  subpaths with `.ts` extensions, never directory imports, and no enums or other
+  syntax that isn't erasable.
 - **Comments explain why,** never what the code already says, and never point at
   a plan, a pull request or a date: they go stale.
 - **Tests cover a unit's own decisions,** not what a framework, a library or a
