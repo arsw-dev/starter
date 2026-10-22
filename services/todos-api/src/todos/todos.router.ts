@@ -1,13 +1,13 @@
 import { createRoute, z } from '@hono/zod-openapi';
 
-import { createRouter } from '#/http/http.router.ts';
 import {
+  createRouter,
   errorSchema,
   invalidSchema,
   json,
   malformedBody,
   serverError,
-} from '#/http/http.schemas.ts';
+} from '@arsw/hono-drizzle';
 
 import { todosModel } from './todos.model.ts';
 import { todosOps } from './todos.operations.ts';
