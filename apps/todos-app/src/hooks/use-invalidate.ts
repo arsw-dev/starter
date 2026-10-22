@@ -1,5 +1,4 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback } from 'react';
 
 import type { QueryKey } from '@tanstack/react-query';
 
@@ -8,18 +7,15 @@ import type { QueryKey } from '@tanstack/react-query';
 const useInvalidate = () => {
   const client = useQueryClient();
 
-  return useCallback(
-    async (...keys: QueryKey[]) => {
-      await Promise.all(
-        keys.map(async (queryKey) =>
-          client.invalidateQueries({
-            queryKey,
-          }),
-        ),
-      );
-    },
-    [client],
-  );
+  return async (...keys: QueryKey[]) => {
+    await Promise.all(
+      keys.map(async (queryKey) =>
+        client.invalidateQueries({
+          queryKey,
+        }),
+      ),
+    );
+  };
 };
 
 export { useInvalidate };
