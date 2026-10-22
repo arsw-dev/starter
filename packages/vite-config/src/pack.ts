@@ -15,12 +15,13 @@ type GetExePath = {
   default: () => string;
 };
 
-const require = createRequire(import.meta.url);
-
 // TypeScript 7's native compiler, which writes the declarations. tsdown finds it
 // itself only for 7.0 or @typescript/native-preview, so it's given the path the
-// installed typescript package reports
+// installed typescript package reports. Found from the project being built,
+// where vp pack runs, so this package needs no typescript peer, whose range
+// would turn away the next nightly
 const tsgoPath = () => {
+  const require = createRequire(path.join(process.cwd(), 'package.json'));
   const root = path.dirname(require.resolve('typescript/package.json'));
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the module's own declaration, typescript/lib/getExePath.d.ts, which its exports don't reach
   const exe = require(path.join(root, 'lib/getExePath.js')) as GetExePath;
