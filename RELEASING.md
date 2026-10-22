@@ -28,12 +28,21 @@ release is a pull request from `main` merged into `release`.
 
 3. **Approve the run:** it waits in the `npm-publish` environment until a
    reviewer approves it (Actions → the run → **Review deployments**).
-4. **The workflow publishes** each package whose version npm doesn't have yet:
+4. **The workflow stages** each package whose version hasn't been released:
    - it builds and packs them, with no credentials;
-   - it publishes each tarball as the package's trusted publisher, so no token
-     is stored anywhere, and npm adds provenance;
+   - it stages each tarball on npm as the package's trusted publisher, so no
+     token is stored anywhere, and npm adds provenance;
    - it tags each version (`start-hono@0.2.0`) and creates its GitHub Release,
      with that version's changelog section as its notes.
+5. **Approve each staged version on npm,** which publishes it. npm asks for 2FA,
+   so the workflow alone can't publish:
+
+   ```sh
+   npm stage list @arsw/<name>
+   npm stage approve <stage-id>
+   ```
+
+   Or on npmjs.com, the package's **Staged Packages** tab → **Approve**.
 
 ## A new package
 
@@ -50,7 +59,8 @@ package's first version can't come from the workflow. Once per package:
 
 2. **Trust the workflow:** on npmjs.com, the package → **Settings** → **Trusted
    Publisher** → **GitHub Actions**: user `arsw-dev`, repository `starter`,
-   workflow `release.yml`, environment `npm-publish`.
+   workflow `release.yml`, environment `npm-publish`. Leave **Allow
+   `npm publish`** unchecked: the workflow only stages.
 3. **Deprecate the placeholder:**
 
    ```sh
@@ -70,17 +80,20 @@ gh api repos/arsw-dev/starter/git/refs -f ref=refs/heads/release \
   -f sha="$(gh api repos/arsw-dev/starter/commits/main -q .sha)"
 ```
 
-Then approve the run. Every release after it is a pull request from `main`.
+Then approve the run, and each staged version on npm. Every release after it is
+a pull request from `main`.
 
 ## Good to know
 
-- **Forgot a version bump?** A package whose version npm already has is skipped,
-  and when none is new, the workflow ends after packing.
+- **Forgot a version bump?** A package whose version already has its GitHub
+  Release is skipped, and when none is new, the workflow ends after packing.
 - **A run that fails** can be re-run once the cause is fixed, its failed jobs or
-  all of them: a version npm already has is skipped, and one npm has without its
-  GitHub Release is packed again, so its tag and Release still come.
-- **One package depending on another** publishes after it: packages publish in
-  folder order, which puts `guardrails` before `vite-config`.
+  all of them: a version with its GitHub Release is skipped, and one npm already
+  has live isn't staged again.
+- **A staged version you reject** keeps its tag and GitHub Release, so the
+  workflow won't stage it again: release the fix as a new version.
+- **One package depending on another** goes live after it: approve `guardrails`
+  before `vite-config`, which depends on it.
 - **Before 1.0,** a minor version may break what it exports; a patch never does.
 - **A new version reaches other repos 3 days later.** A repo that holds releases
   back (`minimumReleaseAge`) can take a version once it's 3 days old: add it
