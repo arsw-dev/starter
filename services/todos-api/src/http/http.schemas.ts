@@ -42,4 +42,24 @@ const json = <TSchema extends z.ZodType>(
   description,
 });
 
-export { LOCATIONS, errorSchema, invalidSchema, issueSchema, json };
+// What every route can answer besides its own responses: anything unexpected,
+// which onError makes a 500 that says nothing about it
+const serverError = {
+  500: json(errorSchema, 'Something failed on the server'),
+};
+
+// And a route that takes a body: one that isn't JSON, which Hono's validator
+// answers with a 400 before the route's schema sees it
+const malformedBody = {
+  400: json(errorSchema, 'The body is not valid JSON'),
+};
+
+export {
+  LOCATIONS,
+  errorSchema,
+  invalidSchema,
+  issueSchema,
+  json,
+  malformedBody,
+  serverError,
+};

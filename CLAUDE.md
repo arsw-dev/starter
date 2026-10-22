@@ -38,10 +38,12 @@ than fixing by hand what it can fix. What no check enforces:
 ## Dependencies
 
 Every version comes from a catalog in `pnpm-workspace.yaml`, grouped by where
-the code runs (`app`, `api`, `shared`, `tooling`). `minimumReleaseAge` holds a
-release back for 3 days and `trustPolicy` refuses one that drops its provenance;
-never add an exclusion to get around either. Stop and ask before adding a
-dependency, a package, a tool or config file, or a lint exemption.
+the code runs (`app`, `api`, `shared`, `tooling`). The exception is a published
+package's peers: ranges from the oldest version its code needs, since `catalog:`
+would publish an exact pin. `minimumReleaseAge` holds a release back for 3 days
+and `trustPolicy` refuses one that drops its provenance; never add an exclusion
+to get around either. Stop and ask before adding a dependency, a package, a tool
+or config file, or a lint exemption.
 
 ## The API
 

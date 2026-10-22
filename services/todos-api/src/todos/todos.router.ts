@@ -1,7 +1,13 @@
 import { createRoute, z } from '@hono/zod-openapi';
 
 import { createRouter } from '#/http/http.router.ts';
-import { errorSchema, invalidSchema, json } from '#/http/http.schemas.ts';
+import {
+  errorSchema,
+  invalidSchema,
+  json,
+  malformedBody,
+  serverError,
+} from '#/http/http.schemas.ts';
 
 import { todosModel } from './todos.model.ts';
 import { todosOps } from './todos.operations.ts';
@@ -16,6 +22,7 @@ const getTodoRoute = createRoute({
     200: json(todosModel.readSchema, 'One todo'),
     404: json(errorSchema, 'Cannot find todo'),
     422: json(invalidSchema, 'The id must be a uuid'),
+    ...serverError,
   },
 });
 
@@ -24,6 +31,7 @@ const getAllTodosRoute = createRoute({
   path: '/',
   responses: {
     200: json(z.array(todosModel.readSchema), 'All todos'),
+    ...serverError,
   },
 });
 
@@ -39,6 +47,8 @@ const createTodoRoute = createRoute({
   responses: {
     201: json(todosModel.readSchema, 'Todo created'),
     422: json(invalidSchema, 'The create body is invalid'),
+    ...malformedBody,
+    ...serverError,
   },
 });
 
@@ -56,6 +66,8 @@ const updateTodoRoute = createRoute({
     200: json(todosModel.readSchema, 'Updated todo'),
     404: json(errorSchema, 'Cannot find todo'),
     422: json(invalidSchema, 'The id or update body is invalid'),
+    ...malformedBody,
+    ...serverError,
   },
 });
 
@@ -71,6 +83,7 @@ const deleteTodoRoute = createRoute({
     },
     404: json(errorSchema, 'Cannot find todo'),
     422: json(invalidSchema, 'The id must be a uuid'),
+    ...serverError,
   },
 });
 

@@ -17,7 +17,10 @@ Its peers: `@tanstack/react-start`, `@tanstack/react-router`,
 `connect` takes the binding and the API's type (`typeof app`, exported by the
 API) and gives back `call`, which turns one typed request into a server
 function's handler. It answers with the response's body, typed by the route, or
-throws an `ApiError` carrying the status and, for a 422, the API's issues.
+throws an `ApiError` carrying the status and, for a 422, the API's issues. A
+failure that isn't an answer (no API behind the binding, a body that isn't JSON)
+is logged on the server and thrown as a 502, so no internal message reaches the
+page. `name` is any text: it's how the API appears in errors and logs.
 
 ```ts
 // src/api/api.server.ts

@@ -43,11 +43,21 @@ jobs:
       - name: Test
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm exec vp test
-      # The published packages build, declarations included, so a pull request
-      # finds what would otherwise fail a release
+      # The published packages build, declarations included, and pack as the
+      # release packs them, so a pull request finds what would otherwise fail a
+      # release
       - name: Pack
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
-        run: pnpm --filter "./packages/*" --if-present run build
+        run: |
+          pnpm --filter "./packages/*" --if-present run build
+
+          for manifest in packages/*/package.json; do
+            dir=$(dirname "$manifest")
+
+            if [[ $(node -p "require('./$manifest').private ?? false") != true ]]; then
+              (cd "$dir" && pnpm pack --pack-destination "$RUNNER_TEMP" >/dev/null)
+            fi
+          done
       # Each API's committed document matches its routes, so a change to an API
       # arrives with the change to its contract
       - name: OpenAPI Documents

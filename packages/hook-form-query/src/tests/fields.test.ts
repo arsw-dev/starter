@@ -93,9 +93,25 @@ describe('zNumber', () => {
     expect(parse(number, '-1.5')).toBe(-1.5);
   });
 
-  it("rejects text that isn't wholly a number", () => {
+  it("rejects text that isn't wholly a number in decimal notation", () => {
     expect(parse(number, '12abc')).toBe('Must be a number');
     expect(parse(number, '1,000')).toBe('Must be a number');
+    expect(parse(number, '0x10')).toBe('Must be a number');
+    expect(parse(number, '1e3')).toBe('Must be a number');
+    expect(parse(number, '.5')).toBe(0.5);
+  });
+
+  it("refines the number, keeping an empty one's message", () => {
+    const estimate = zNumber({
+      type: 'required',
+      refine: (value) =>
+        value.int('Must be a whole number').min(1, 'Must be at least 1'),
+    });
+
+    expect(parse(estimate, '2')).toBe(2);
+    expect(parse(estimate, '1.5')).toBe('Must be a whole number');
+    expect(parse(estimate, '0')).toBe('Must be at least 1');
+    expect(parse(estimate, '')).toBe('Required');
   });
 });
 

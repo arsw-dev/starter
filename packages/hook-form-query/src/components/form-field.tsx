@@ -26,11 +26,13 @@ type FieldContextValue = {
 // What a control needs to be labelled and described
 type ControlProps = {
   id: string;
-  'aria-describedby': string;
+  'aria-describedby': string | undefined;
   'aria-invalid': boolean;
 };
 
 type FormControlProps = {
+  // Whether a FormDescription is rendered: only ids that exist are named
+  described?: boolean;
   children: (props: ControlProps) => ReactNode;
 };
 
@@ -103,12 +105,16 @@ const FormLabel = ({ className, ...props }: ComponentProps<'label'>) => {
 
 // Hands its control the ids and state the other parts point at, where shadcn's
 // Slot would put them on its child
-const FormControl = ({ children }: FormControlProps) => {
+const FormControl = ({ described = false, children }: FormControlProps) => {
   const { error, controlId, descriptionId, messageId } = useFormField();
+  const describedBy = [described && descriptionId, error && messageId].filter(
+    Boolean,
+  );
 
   return children({
     id: controlId,
-    'aria-describedby': error ? `${descriptionId} ${messageId}` : descriptionId,
+    'aria-describedby':
+      describedBy.length > 0 ? describedBy.join(' ') : undefined,
     'aria-invalid': error !== undefined,
   });
 };

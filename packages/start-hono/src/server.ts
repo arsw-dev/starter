@@ -1,7 +1,7 @@
 import { createServerOnlyFn } from '@tanstack/react-start';
 import { hc } from 'hono/client';
 
-import { unwrap } from './unwrap.ts';
+import { toApiError, unwrap } from './unwrap.ts';
 
 import type { Hono } from 'hono';
 import type { ClientResponse } from 'hono/client';
@@ -49,7 +49,7 @@ type HandlerInput<TData> = {
 };
 
 type Options = {
-  // The API's name, in its errors and logs
+  // The API's name, in its errors and logs: any text
   name: string;
 };
 
@@ -63,7 +63,7 @@ const connect = <TApp extends AnyApp>(
   // A service binding ignores the host: hc only needs a URL to build paths on.
   // .internal never resolves publicly, so a request that leaked past the
   // binding would reach nothing
-  const origin = `https://${name}.internal`;
+  const origin = 'https://api.internal';
 
   const client = createServerOnlyFn(() =>
     hc<TApp>(origin, {
@@ -88,10 +88,14 @@ const connect = <TApp extends AnyApp>(
     request: (client: Client<TApp>, data: TData) => Promise<TResponse>,
   ) =>
     async ({ data }: HandlerInput<TData>): Promise<Body<TResponse>> => {
-      const body = await unwrap(name, await request(client(), data));
+      try {
+        const body = await unwrap(name, await request(client(), data));
 
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- unwrap returns only a success's body, and hc's types say what that is
-      return body as Body<TResponse>;
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- unwrap returns only a success's body, and hc's types say what that is
+        return body as Body<TResponse>;
+      } catch (error) {
+        throw toApiError(name, error);
+      }
     };
 };
 

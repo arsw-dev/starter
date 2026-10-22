@@ -56,7 +56,7 @@ const FormSelect = <TFormValues extends FieldValues = never>({
       render={({ field }) => (
         <FormItem className={className}>
           <FormLabel>{label}</FormLabel>
-          <FormControl>
+          <FormControl described={description !== undefined}>
             {(controlProps) => (
               <select
                 {...props}

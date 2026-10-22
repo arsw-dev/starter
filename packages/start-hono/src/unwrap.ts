@@ -43,4 +43,18 @@ const unwrap = async (api: string, response: Response): Promise<unknown> => {
   );
 };
 
-export { unwrap };
+// Anything else a call can fail with: no API behind the binding, a body that
+// isn't JSON. Logged here with what it was, and answered as a 502, so every
+// failure that reaches the page is an ApiError and none carries an internal
+// message
+const toApiError = (api: string, error: unknown) => {
+  if (error instanceof ApiError) {
+    return error;
+  }
+
+  console.error(`${api} failed:`, error);
+
+  return new ApiError(api, 502);
+};
+
+export { toApiError, unwrap };

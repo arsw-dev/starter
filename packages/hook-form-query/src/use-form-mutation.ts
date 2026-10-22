@@ -3,9 +3,11 @@ import { useMutation } from '@tanstack/react-query';
 import { useForm, useWatch } from 'react-hook-form';
 
 import { buildPatch } from './patch.ts';
+import { toSubmission } from './submission.ts';
 
 import type { FieldsSchema } from './patch.ts';
 import type { MutationKey, UseMutationOptions } from '@tanstack/react-query';
+import type { BaseSyntheticEvent } from 'react';
 import type {
   DefaultValues,
   FieldValues,
@@ -13,6 +15,15 @@ import type {
   PathValue,
 } from 'react-hook-form';
 import type { z } from 'zod';
+
+// A form's schema: an object of fields, so each can be parsed on its own
+type FormSchema = FieldsSchema<FieldValues> &
+  z.ZodType<FieldValues, FieldValues>;
+
+// What the form holds, and what it sends once the schema has parsed it
+type Input<TSchema extends FormSchema> = z.input<TSchema>;
+
+type Output<TSchema extends FormSchema> = z.output<TSchema>;
 
 // The options defineApi's mutations give, with the key they always carry
 type MutationFor<TData, TVariables> = UseMutationOptions<
@@ -23,11 +34,11 @@ type MutationFor<TData, TVariables> = UseMutationOptions<
   mutationKey: MutationKey;
 };
 
-type Shared<TInput extends FieldValues, TOutput extends FieldValues> = {
-  schema: FieldsSchema<TOutput> & z.ZodType<TOutput, TInput>;
-  defaultValues?: DefaultValues<TInput>;
+type Shared<TSchema extends FormSchema> = {
+  schema: TSchema;
+  defaultValues?: DefaultValues<Input<TSchema>>;
   // Live values: the form follows them as they change
-  values?: TInput | undefined;
+  values?: Input<TSchema> | undefined;
 };
 
 // What the mutation takes, when it isn't what the form sends: an update's id
@@ -44,55 +55,55 @@ type Sending<TSent, TData, TVariables> =
     };
 
 type CreateOptions<
-  TInput extends FieldValues,
-  TOutput extends FieldValues,
+  TSchema extends FormSchema,
   TData,
   TVariables,
-> = Shared<TInput, TOutput> &
-  Sending<TOutput, TData, TVariables> & {
+> = Shared<TSchema> &
+  Sending<Output<TSchema>, TData, TVariables> & {
     update?: false;
   };
 
 // values are the server's: undefined while they load, and what a submit is
 // compared against
 type UpdateOptions<
-  TInput extends FieldValues,
-  TOutput extends FieldValues,
+  TSchema extends FormSchema,
   TData,
   TVariables,
-> = Shared<TInput, TOutput> &
-  Sending<Partial<TOutput>, TData, TVariables> & {
+> = Shared<TSchema> &
+  Sending<Partial<Output<TSchema>>, TData, TVariables> & {
     update: true;
     // A submit with nothing to send
     onUnchanged?: () => void;
   };
 
-type Options<
-  TInput extends FieldValues,
-  TOutput extends FieldValues,
-  TData,
-  TVariables,
-> =
-  | CreateOptions<TInput, TOutput, TData, TVariables>
-  | UpdateOptions<TInput, TOutput, TData, TVariables>;
+type Options<TSchema extends FormSchema, TData, TVariables> =
+  | CreateOptions<TSchema, TData, TVariables>
+  | UpdateOptions<TSchema, TData, TVariables>;
 
 // A form that submits as a mutation: the schema parses it, a create sends what
 // it parses to, and an update sends only what changed from the server's values
-const useFormMutation = <
-  TInput extends FieldValues,
-  TOutput extends FieldValues,
-  TData,
-  TVariables = never,
->(
-  options: Options<TInput, TOutput, TData, TVariables>,
+const useFormMutation = <TSchema extends FormSchema, TData, TVariables = never>(
+  options: Options<TSchema, TData, TVariables>,
 ) => {
   const { schema, defaultValues, values } = options;
 
-  // Errors show on submit first, then as each field is left
-  const form = useForm<TInput, unknown, TOutput>({
-    resolver: zodResolver(schema),
+  // zodResolver's overloads can't match a schema that's still a type
+  // parameter, so it's given the schema as what it is: the form's input to its
+  // output
+  const resolver = zodResolver(
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the same schema, typed by its own input and output
+    schema as unknown as z.ZodType<Output<TSchema>, Input<TSchema>>,
+  );
+
+  // Errors show on submit first, then as each field is left. When the
+  // server's values change, a field the user has edited keeps their edit
+  const form = useForm<Input<TSchema>, unknown, Output<TSchema>>({
+    resolver,
     mode: 'onSubmit',
     reValidateMode: 'onBlur',
+    resetOptions: {
+      keepDirtyValues: true,
+    },
     ...(defaultValues && {
       defaultValues,
     }),
@@ -117,31 +128,47 @@ const useFormMutation = <
       Object.keys(buildPatch(schema, values, current)).length > 0
     : form.formState.isDirty;
 
-  const onSubmit = form.handleSubmit((data) => {
-    if (!options.update) {
-      mutation.mutate(options.toVariables ? options.toVariables(data) : data);
+  const submit = form.handleSubmit((data) => {
+    const submission = toSubmission({
+      schema,
+      data,
+      current: form.getValues(),
+      update: options.update === true,
+      server: values,
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Sending pairs toVariables with what this form sends: its output for a create, part of it for an update
+      toVariables: options.toVariables as
+        | ((sent: unknown) => unknown)
+        | undefined,
+    });
 
-      return;
-    }
-
-    const patch = buildPatch(schema, values ?? {}, form.getValues());
-
-    if (Object.keys(patch).length === 0) {
+    if (submission.status === 'unchanged' && options.update) {
       options.onUnchanged?.();
-
-      return;
     }
 
-    mutation.mutate(options.toVariables ? options.toVariables(patch) : patch);
+    if (submission.status === 'send') {
+      mutation.mutate(submission.variables);
+    }
   });
 
-  const setValues = (next: Partial<TInput>) => {
+  // An update can't submit before the server's values arrive: there'd be
+  // nothing to compare against, and its skeleton would show the schema's errors
+  const onSubmit = async (event?: BaseSyntheticEvent) => {
+    if (isLoading) {
+      event?.preventDefault();
+
+      return;
+    }
+
+    await submit(event);
+  };
+
+  const setValues = (next: Partial<Input<TSchema>>) => {
     for (const [name, value] of Object.entries(next)) {
       // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Object.entries loses the keys' type
-      const path = name as Path<TInput>;
+      const path = name as Path<Input<TSchema>>;
 
       // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- as above, for the value
-      form.setValue(path, value as PathValue<TInput, typeof path>, {
+      form.setValue(path, value as PathValue<Input<TSchema>, typeof path>, {
         shouldDirty: true,
       });
     }

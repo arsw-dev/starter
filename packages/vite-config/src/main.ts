@@ -138,9 +138,9 @@ const lint = {
       // A route file keeps TanStack's layout: the exported route first, then
       // its component as a function declaration, which hoisting makes work
       files: [
-        'apps/*/src/routes/__root.tsx',
-        'apps/*/src/routes/**/index.tsx',
-        'apps/*/src/routes/**/route.tsx',
+        '**/src/routes/__root.tsx',
+        '**/src/routes/**/index.tsx',
+        '**/src/routes/**/route.tsx',
       ],
       rules: {
         'arsw/no-function': 'off',
