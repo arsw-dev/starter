@@ -63,6 +63,10 @@ that answers, such as a 401, stops the request there. Each is typed by
 `createMiddleware<AppEnv<Variables>>` from `hono/factory`, and sets a variable
 with `c.set('user', user)`.
 
+Middleware can also be chained, `createApp<Variables>().use(signedIn)`, or added
+to one router: what `createApp` and `createRouter` return keeps `openapi` after
+`.use()`, where `OpenAPIHono`'s own type would return a plain `Hono`.
+
 ## Errors
 
 Every error is JSON with a `message`:

@@ -3,7 +3,9 @@
 ## 0.1.2
 
 `createApp` takes `middleware`: an API's own, run on every request in order,
-after the database and before its routes.
+after the database and before its routes. And `.use()` on what `createApp` and
+`createRouter` return keeps its type: the chain still has `openapi`, and can be
+passed where an `OpenAPIHono` is expected.
 
 ## 0.1.1
 

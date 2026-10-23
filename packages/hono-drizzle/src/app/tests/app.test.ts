@@ -1,12 +1,16 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { env } from 'cloudflare:workers';
 import { sql } from 'drizzle-orm';
-import { expect, it } from 'vite-plus/test';
+import { createMiddleware } from 'hono/factory';
+import { expect, expectTypeOf, it } from 'vite-plus/test';
 
 import { createApp } from '#/app/app.ts';
 import { NotFound } from '#/http/http.errors.ts';
 import { createRouter } from '#/http/http.router.ts';
 import { json } from '#/http/http.schemas.ts';
+
+import type { AppEnv } from '#/http/http.types.ts';
+import type { OpenAPIHono } from '@hono/zod-openapi';
 
 // What createApp wires up, checked once with routes of its own rather than
 // through every domain's: Hono calls the hooks, but registering them is ours
@@ -89,25 +93,25 @@ const greetingRouter = createRouter<Variables>().openapi(
   },
 );
 
+const greet = createMiddleware<AppEnv<Variables>>(async (c, next) => {
+  const greeting = c.req.header('greeting');
+
+  if (!greeting) {
+    return c.json(
+      {
+        message: 'No greeting',
+      },
+      401,
+    );
+  }
+
+  c.set('greeting', greeting);
+
+  return next();
+});
+
 const appWithoutDb = createApp<Variables>({
-  middleware: [
-    async (c, next) => {
-      const greeting = c.req.header('greeting');
-
-      if (!greeting) {
-        return c.json(
-          {
-            message: 'No greeting',
-          },
-          401,
-        );
-      }
-
-      c.set('greeting', greeting);
-
-      return next();
-    },
-  ],
+  middleware: [greet],
 }).route('/', greetingRouter);
 
 const request = async (
@@ -189,4 +193,18 @@ it('runs without a database, and runs its middleware before the routes added aft
       message: 'No greeting',
     },
   });
+});
+
+it('keeps the OpenAPI methods on its type, with middleware given or chained', () => {
+  expectTypeOf(
+    createApp<Variables>({
+      middleware: [greet],
+    }),
+  ).toExtend<OpenAPIHono<AppEnv<Variables>>>();
+  expectTypeOf(createApp<Variables>().use(greet)).toExtend<
+    OpenAPIHono<AppEnv<Variables>>
+  >();
+  expectTypeOf(createApp<Variables>().use('/greeting', greet)).toExtend<
+    OpenAPIHono<AppEnv<Variables>>
+  >();
 });
