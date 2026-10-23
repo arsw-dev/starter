@@ -8,8 +8,13 @@ export {
   FormMessage,
   useFormField,
 } from './components/form-field.tsx';
-export { FormInput } from './components/form-input.tsx';
-export { FormSelect } from './components/form-select.tsx';
-export { FormTextarea } from './components/form-textarea.tsx';
+export { createFormFactory } from './factory/create-form-factory.tsx';
 export { zBoolean, zEnum, zNumber, zString } from './fields.ts';
 export { useFormMutation } from './use-form-mutation.ts';
+
+export type { ControlAria } from './components/form-field.tsx';
+export type { Option } from './engines/control.ts';
+export type {
+  FieldPartProps,
+  FieldParts,
+} from './factory/create-form-factory.tsx';

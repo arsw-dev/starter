@@ -95,15 +95,19 @@ const useFormMutation = <TSchema extends FormSchema, TData, TVariables = never>(
     schema as unknown as z.ZodType<Output<TSchema>, Input<TSchema>>,
   );
 
-  // Errors show on submit first, then as each field is left. When the
-  // server's values change, a field the user has edited keeps their edit
+  // Errors show on submit first, then as each field is left. When an update's
+  // server values change, a field the user has edited keeps their edit. Only
+  // an update's: React Hook Form applies resetOptions to every reset() too,
+  // and a create's reset() is meant to clear what was typed
   const form = useForm<Input<TSchema>, unknown, Output<TSchema>>({
     resolver,
     mode: 'onSubmit',
     reValidateMode: 'onBlur',
-    resetOptions: {
-      keepDirtyValues: true,
-    },
+    ...(options.update && {
+      resetOptions: {
+        keepDirtyValues: true,
+      },
+    }),
     ...(defaultValues && {
       defaultValues,
     }),

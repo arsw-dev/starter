@@ -1,7 +1,7 @@
 {
   "name": "@arsw/hook-form-query",
-  "version": "0.1.0",
-  "description": "Forms on React Hook Form, Zod and TanStack Query: schema helpers for what a form gives, a hook that submits as a mutation, and field components",
+  "version": "0.2.0",
+  "description": "Forms on React Hook Form, Zod and TanStack Query: schema helpers for what a form gives, a hook that submits as a mutation, and fields from an app's own components",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -36,8 +36,15 @@
     "@arsw/vite-config": "workspace:*",
     "@hookform/resolvers": "catalog:app",
     "@tanstack/react-query": "catalog:app",
+    "@testing-library/dom": "catalog:tooling",
+    "@testing-library/react": "catalog:tooling",
+    "@testing-library/user-event": "catalog:tooling",
     "@types/react": "catalog:app",
+    "@types/react-dom": "catalog:app",
+    "jsdom": "catalog:tooling",
+    "radix-ui": "catalog:app",
     "react": "catalog:app",
+    "react-dom": "catalog:app",
     "react-hook-form": "catalog:app",
     "vite-plus": "catalog:tooling",
     "zod": "catalog:shared"

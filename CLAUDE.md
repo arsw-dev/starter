@@ -75,9 +75,11 @@ or config file, or a lint exemption.
   (`void queryClient.query(...).catch(noop)`); the page shows a skeleton for
   each section until its data arrives.
 - **Forms come from `@arsw/hook-form-query`:** a schema built from its `z`
-  helpers (separate schemas for create and update), `useFormMutation`, and its
-  field components, each given the form's type. Errors the form catches show on
-  their field; errors the server returns are toasts.
+  helpers (separate schemas for create and update), `useFormMutation`, and the
+  app's fields, each given the form's type. The fields are made once, by
+  `createFormFactory` in `src/components/form-fields.tsx`, from the app's own
+  styled parts. Errors the form catches show on their field; errors the server
+  returns are toasts.
 - **No memoizing by hand** (`useMemo`, `useCallback`, `memo`): the React
   Compiler does it.
 - **State shared across the app is a Zustand store** in `src/stores/`.
