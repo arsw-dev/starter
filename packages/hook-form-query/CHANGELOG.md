@@ -4,7 +4,9 @@
 
 Fields come from the app's own components: `createFormFactory` takes an engine
 (`native` or `radix`) and the parts around every control, and makes each field
-from the app's components for its control. The package renders no styles.
+from the app's components for its control. A field's `className` goes to its
+control, and its `wrapperClassName` to the wrapper. The package renders no
+styles.
 
 Breaking: `FormInput`, `FormTextarea` and `FormSelect` are gone, made instead
 with `createFormFactory`. Nothing is styled, so an app's stylesheet no longer

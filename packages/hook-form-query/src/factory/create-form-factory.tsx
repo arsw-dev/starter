@@ -29,10 +29,15 @@ type Labelling = Linked & {
   htmlFor: string;
 };
 
+// The wrapper's class comes from the field, as the control's does
+type Wrapping = Children & {
+  className?: string | undefined;
+};
+
 // The parts around every control of a factory's fields, each given the ids
 // that link it to the control. A plain element unless given
 type FieldParts = {
-  wrapper?: ComponentType<Children>;
+  wrapper?: ComponentType<Wrapping>;
   label?: ComponentType<Labelling>;
   description?: ComponentType<Linked>;
   message?: ComponentType<Linked>;
@@ -62,6 +67,8 @@ type FieldProps<TFormValues extends FieldValues> = {
   name: NoInfer<FieldPath<TFormValues>>;
   label: ReactNode;
   description?: ReactNode;
+  // The field's className is its control's, so the wrapper has its own
+  wrapperClassName?: string | undefined;
 };
 
 type PropsOf<TPart> =
@@ -90,6 +97,7 @@ type BodyProps = {
   parts: Required<FieldParts>;
   label: ReactNode;
   description: ReactNode;
+  wrapperClassName: string | undefined;
   children: (aria: ControlProps, labelId: string) => ReactNode;
 };
 
@@ -97,7 +105,9 @@ type RuntimeProps = FieldProps<FieldValues> & ControlArgs<ControlSpec>['props'];
 
 // The parts a factory isn't given: plain elements
 const plain: Required<FieldParts> = {
-  wrapper: ({ children }: Children) => <div>{children}</div>,
+  wrapper: ({ className, children }: Wrapping) => (
+    <div className={className}>{children}</div>
+  ),
   label: ({ id, htmlFor, children }: Labelling) => (
     <label id={id} htmlFor={htmlFor}>
       {children}
@@ -108,7 +118,13 @@ const plain: Required<FieldParts> = {
 };
 
 // A field's label, description and error around its control, all linked
-const Body = ({ parts, label, description, children }: BodyProps) => {
+const Body = ({
+  parts,
+  label,
+  description,
+  wrapperClassName,
+  children,
+}: BodyProps) => {
   const {
     wrapper: Wrapper,
     label: Label,
@@ -119,7 +135,7 @@ const Body = ({ parts, label, description, children }: BodyProps) => {
     useFormField();
 
   return (
-    <Wrapper>
+    <Wrapper className={wrapperClassName}>
       <Label id={labelId} htmlFor={controlId}>
         {label}
       </Label>
@@ -161,7 +177,13 @@ const createFormFactory = <TEngine extends Engine>({
   }: ControlOptions<TControl, TParts>) => {
     const EngineControl: Control<ControlSpec> = controls[control];
 
-    const Field = ({ name, label, description, ...props }: RuntimeProps) => {
+    const Field = ({
+      name,
+      label,
+      description,
+      wrapperClassName,
+      ...props
+    }: RuntimeProps) => {
       const form = useFormContext();
 
       return (
@@ -170,7 +192,12 @@ const createFormFactory = <TEngine extends Engine>({
           name={name}
           render={({ field }) => (
             <FieldItem>
-              <Body parts={shared} label={label} description={description}>
+              <Body
+                parts={shared}
+                label={label}
+                description={description}
+                wrapperClassName={wrapperClassName}
+              >
                 {(aria, labelId) => (
                   <EngineControl
                     parts={parts}

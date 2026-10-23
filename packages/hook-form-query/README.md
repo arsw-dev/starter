@@ -172,10 +172,11 @@ const FormSelect = formFactory({
 ```
 
 Each field takes the form's type, and its `name` must be one of that type's
-fields: leaving the type out doesn't compile. Every field takes a `label` and a
-`description`; a select takes `options` and a `placeholder`, and a radio group
-`options`. Its other props go to the control's main part: the input, the
-select's trigger, the radio group's root.
+fields: leaving the type out doesn't compile. Every field takes a `label`, a
+`description` and a `wrapperClassName`; a select takes `options` and a
+`placeholder`, and a radio group `options`. Its other props, `className`
+included, go to the control's main part: the input, the select's trigger, the
+radio group's root.
 
 ### Engines and controls
 
@@ -200,8 +201,8 @@ take it doesn't compile. Each is given:
   and `aria-invalid` that link it to its label, description and error.
   `disabled` is the field's own, joined with React Hook Form's.
 - **The field's parts**, each optional and a plain element unless given:
-  `wrapper` its children, `label` an `id` and `htmlFor`, `description` and
-  `message` an `id`.
+  `wrapper` its children and the field's `wrapperClassName` (as `className`),
+  `label` an `id` and `htmlFor`, `description` and `message` an `id`.
 - **A Radix select's** `content` renders its children as the list, and its
   `item` renders its children as the item's text, as shadcn's do. The
   `placeholder` shows while the field is empty and is also an item that clears

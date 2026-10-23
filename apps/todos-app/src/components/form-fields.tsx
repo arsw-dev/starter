@@ -9,8 +9,8 @@ import type { ComponentProps } from 'react';
 const control =
   'rounded-md border border-slate-300 px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none aria-invalid:border-red-500';
 
-const Wrapper = (props: ComponentProps<'div'>) => (
-  <div {...props} className="flex flex-col gap-1" />
+const Wrapper = ({ className, ...props }: ComponentProps<'div'>) => (
+  <div {...props} className={`flex flex-col gap-1 ${className ?? ''}`} />
 );
 
 const Label = (props: ComponentProps<'label'>) => {

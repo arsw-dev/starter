@@ -167,6 +167,24 @@ describe('a field', () => {
     expect(input.getAttribute('placeholder')).toBe('What needs doing?');
   });
 
+  it('gives its className to the control and its wrapperClassName to the wrapper', () => {
+    renderForm(
+      <FormInput<Todo>
+        name="title"
+        label="Title"
+        className="control"
+        wrapperClassName="wrapper"
+      />,
+    );
+
+    const input = screen.getByRole('textbox', {
+      name: 'Title',
+    });
+
+    expect(input.className).toBe('control');
+    expect(input.parentElement?.className).toBe('wrapper');
+  });
+
   it('renders no styles of its own', async () => {
     const { submit } = renderForm(
       <FormInput<Todo> name="title" label="Title" description="Short" />,
