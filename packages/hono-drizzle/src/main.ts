@@ -10,6 +10,7 @@ export { createRouter } from './http/http.router.ts';
 export {
   LOCATIONS,
   errorSchema,
+  errors,
   invalidSchema,
   issueSchema,
   json,

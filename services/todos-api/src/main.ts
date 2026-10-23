@@ -1,11 +1,10 @@
 import { createApp } from '@arsw/hono-drizzle';
 
-import { registerRoutes } from './app/app.ts';
+import { todosRouter } from './todos/todos.router.ts';
 
-const app = registerRoutes(
-  createApp({
-    db: (env) => env.DB,
-  }),
-);
-
-export default app;
+export default createApp({
+  db: (env) => env.DB,
+  routes: {
+    '/': todosRouter,
+  },
+});
