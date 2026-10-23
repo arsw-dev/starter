@@ -50,9 +50,9 @@ or config file, or a lint exemption.
 - **A domain is one folder** (`src/todos/`): its model, its operations and its
   router.
 - **The model is the only definition** of a table and its schemas: `defineModel`
-  (`@arsw/hono-drizzle`) builds the Drizzle table, its `CHECK` constraints and
-  the Zod schemas for reading, creating and updating, from one list of fields.
-  Never write a table or a schema beside it. After changing a model, run
+  (`@arsw/kiln/model`) builds the Drizzle table, its `CHECK` constraints and the
+  Zod schemas for reading, creating and updating, from one list of fields. Never
+  write a table or a schema beside it. After changing a model, run
   `pnpm db:generate` and commit the migration.
 - **Operations name the columns they read and return** (`readColumns`), so a new
   internal column never reaches a response.

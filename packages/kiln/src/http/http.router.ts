@@ -2,7 +2,6 @@ import { OpenAPIHono } from '@hono/zod-openapi';
 
 import { LOCATIONS } from './http.schemas.ts';
 
-import type { DB } from '#/db/db.ts';
 import type { AppEnv, InvalidRequest, Issue } from './http.types.ts';
 import type { z } from '@hono/zod-openapi';
 import type { Env, MiddlewareHandler, Schema } from 'hono';
@@ -52,11 +51,7 @@ class Router<
   declare use: Use<E, S, BasePath> & OpenAPIHono<E, S, BasePath>['use'];
 }
 
-const createRouter = <
-  Variables extends object = {
-    db: DB;
-  },
->() =>
+const createRouter = <Variables extends object = {}>() =>
   new Router<AppEnv<Variables>>({
     strict: false,
     defaultHook: (result, ctx) => {

@@ -1,6 +1,5 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { env } from 'cloudflare:workers';
-import { sql } from 'drizzle-orm';
 import { hc } from 'hono/client';
 import { createMiddleware } from 'hono/factory';
 import { expect, expectTypeOf, it } from 'vite-plus/test';
@@ -16,55 +15,25 @@ import type { InferResponseType } from 'hono/client';
 
 // What createApp wires up, checked once with routes of its own rather than
 // through every domain's: Hono calls the hooks, but registering them is ours
-const app = createApp({
-  db: (bindings) => bindings.DB,
-})
-  .openapi(
-    createRoute({
-      method: 'get',
-      path: '/items/{id}',
-      request: {
-        params: z.object({
-          id: z.uuid('Id must be a uuid'),
-        }),
-      },
-      responses: {
-        200: json(z.object({}), 'Never sent'),
-      },
-    }),
-    () => {
-      throw new NotFound('Item not found');
+const app = createApp().openapi(
+  createRoute({
+    method: 'get',
+    path: '/items/{id}',
+    request: {
+      params: z.object({
+        id: z.uuid('Id must be a uuid'),
+      }),
     },
-  )
-  .openapi(
-    createRoute({
-      method: 'get',
-      path: '/db',
-      responses: {
-        200: json(
-          z.object({
-            answer: z.number(),
-          }),
-          'What the database answered',
-        ),
-      },
-    }),
-    async (c) => {
-      const row = await c.var.db.get<{
-        answer: number;
-      }>(sql`select 42 as answer`);
-
-      return c.json(
-        {
-          answer: row.answer,
-        },
-        200,
-      );
+    responses: {
+      200: json(z.object({}), 'Never sent'),
     },
-  );
+  }),
+  () => {
+    throw new NotFound('Item not found');
+  },
+);
 
-// An API with no database, whose requests carry a variable of its own, set
-// by its middleware
+// An API whose requests carry a variable of its own, set by its middleware
 type Variables = {
   greeting: string;
 };
@@ -82,17 +51,13 @@ const greetingRouter = createRouter<Variables>().openapi(
       ),
     },
   }),
-  (c) => {
-    // @ts-expect-error: an API that declares its variables without db has none
-    void c.var.db;
-
-    return c.json(
+  (c) =>
+    c.json(
       {
         greeting: c.var.greeting,
       },
       200,
-    );
-  },
+    ),
 );
 
 const greet = createMiddleware<AppEnv<Variables>>(async (c, next) => {
@@ -112,13 +77,13 @@ const greet = createMiddleware<AppEnv<Variables>>(async (c, next) => {
   return next();
 });
 
-const appWithoutDb = createApp<Variables>({
+const greetingApp = createApp<Variables>({
   middleware: [greet],
 }).route('/', greetingRouter);
 
 const request = async (
   path: string,
-  to: typeof app | typeof appWithoutDb = app,
+  to: typeof app | typeof greetingApp = app,
   headers: Record<string, string> = {},
 ) => {
   const response = await to.request(
@@ -169,18 +134,9 @@ it('answers a path no route has with a 404', async () => {
   });
 });
 
-it('gives every handler the database', async () => {
-  expect(await request('/db')).toEqual({
-    status: 200,
-    body: {
-      answer: 42,
-    },
-  });
-});
-
-it('runs without a database, and runs its middleware before the routes added after it', async () => {
+it('runs its middleware before the routes added after it', async () => {
   expect(
-    await request('/greeting', appWithoutDb, {
+    await request('/greeting', greetingApp, {
       greeting: 'Hello',
     }),
   ).toEqual({
@@ -189,7 +145,7 @@ it('runs without a database, and runs its middleware before the routes added aft
       greeting: 'Hello',
     },
   });
-  expect(await request('/greeting', appWithoutDb)).toEqual({
+  expect(await request('/greeting', greetingApp)).toEqual({
     status: 401,
     body: {
       message: 'No greeting',

@@ -7,10 +7,12 @@ import {
   json,
   malformedBody,
   serverError,
-} from '@arsw/hono-drizzle';
+} from '@arsw/kiln';
 
 import { todosModel } from './todos.model.ts';
 import { todosOps } from './todos.operations.ts';
+
+import type { Variables } from '#/app/app.types.ts';
 
 const getTodoRoute = createRoute({
   method: 'get',
@@ -93,7 +95,7 @@ const deleteTodoRoute = createRoute({
   },
 });
 
-const todosRouter = createRouter()
+const todosRouter = createRouter<Variables>()
   .basePath('/todos')
   .openapi(getTodoRoute, async (c) =>
     c.json(await todosOps.get(c.var.db, c.req.valid('param').id), 200),

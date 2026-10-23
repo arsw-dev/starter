@@ -9,8 +9,18 @@ type Binding = (env: Cloudflare.Env) => D1Database;
 
 type DB = DrizzleD1Database;
 
-const database = (binding: Binding) =>
-  createMiddleware<AppEnv>(async (c, next) => {
+// A middleware like any other, first in createApp's list so the rest can use
+// c.var.db. Generic, inferred from where it's used: a context's variables are
+// read and set, so one typed with only { db } wouldn't fit beside a middleware
+// that sets something else
+const database = <
+  Variables extends {
+    db: DB;
+  },
+>(
+  binding: Binding,
+) =>
+  createMiddleware<AppEnv<Variables>>(async (c, next) => {
     c.set('db', drizzle(binding(c.env)));
 
     await next();
