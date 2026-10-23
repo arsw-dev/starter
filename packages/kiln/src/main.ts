@@ -1,6 +1,10 @@
 export { createApp } from './app/app.ts';
 export {
+  Conflict,
+  Forbidden,
+  HttpError,
   NotFound,
+  Unauthorized,
   notFound,
   onError,
   toErrorResponse,
@@ -19,6 +23,7 @@ export {
 export type {
   AppEnv,
   ErrorBody,
+  ErrorStatus,
   InvalidRequest,
   Issue,
 } from './http/http.types.ts';

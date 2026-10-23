@@ -91,11 +91,26 @@ can't see.
 
 Every error is JSON with a `message`:
 
-- **404**, for a path no route has, or when a handler throws `NotFound`.
+- **404**, `Not Found`, for a path no route has.
+- **An `HttpError`**, thrown by a handler or an operation, with its own status
+  and message: `Unauthorized` (401), `Forbidden` (403), `NotFound` (404) and
+  `Conflict` (409), or a class of an API's own, which names its status once:
+
+  ```ts
+  class Gone extends HttpError {
+    override name = 'Gone';
+    readonly status = 410;
+  }
+
+  throw new Gone('Todo was archived');
+  ```
+
+  Its status is any client or server error but 422, whose body has its issues.
+
 - **422**, `Invalid Request`, with `issues`: each one's `in` (`body`, `path`,
   `query`, … in OpenAPI's words), its `path` (`dueDate`, `tags.0`) and
   `message`. An unknown key is an issue of its own, at its own path.
-- **An `HTTPException`**, with its own status and message.
+- **An `HTTPException`**, Hono's, with its own status and message.
 - **500** for anything else, `Internal Server Error`: the error itself is
   logged, never sent.
 
