@@ -1,6 +1,6 @@
 {
   "name": "@arsw/hono-drizzle",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A Hono API on Cloudflare Workers and D1: OpenAPI routes with one error shape, and Drizzle tables and Zod schemas from one model",
   "license": "MIT",
   "repository": {
