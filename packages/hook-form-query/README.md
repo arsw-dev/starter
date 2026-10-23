@@ -106,9 +106,10 @@ const { form, formId, onSubmit, isLoading, isSubmitting, isDirty } =
 </Form>;
 ```
 
-Until the values arrive, `isLoading` holds the fields as skeletons and a submit
-does nothing. `isDirty` follows the same comparison as the submit, and a field
-the user has edited keeps their edit when the server's values change.
+Until the values arrive, `isLoading` is true, the fields take no input, and a
+submit does nothing. `isDirty` follows the same comparison as the submit, and a
+field the user has edited keeps their edit when the server's values change. Only
+an update keeps edits: a create form's `form.reset()` clears what was typed.
 
 `formId` is the mutation key joined with dashes (`todos-update`), so a button
 elsewhere on the page can submit the form (`<button form={formId}>`). One form
@@ -171,6 +172,9 @@ const FormSelect = formFactory({
 </Form>;
 ```
 
+Make the factory and each field once, at module scope: each `formFactory` call
+makes a new component, which would remount its field on every render.
+
 Each field takes the form's type, and its `name` must be one of that type's
 fields: leaving the type out doesn't compile. Every field takes a `label`, a
 `description` and a `wrapperClassName`; a select takes `options` and a
@@ -194,7 +198,9 @@ or a Radix primitive's callbacks. Radix has no text field, so its `input` and
 | `radio-group` |                | `root`, `item`, `label`, `option` (optional)  |
 
 A part is checked against what the engine gives it, so a component that can't
-take it doesn't compile. Each is given:
+take that doesn't compile. The check is by shape, not by kind: a radio group's
+root would pass as a select's. And a part's own props must be optional, since
+the check knows only what the engine gives it. Each part is given:
 
 - **A control** (the input, the trigger, the checkbox): its value or `checked`,
   its change handler, `onBlur`, `ref`, `name`, and the `id`, `aria-describedby`
@@ -202,24 +208,29 @@ take it doesn't compile. Each is given:
   `disabled` is the field's own, joined with React Hook Form's.
 - **The field's parts**, each optional and a plain element unless given:
   `wrapper` its children and the field's `wrapperClassName` (as `className`),
-  `label` an `id` and `htmlFor`, `description` and `message` an `id`.
+  `label` an `id`, and `htmlFor` unless the control is a radio group,
+  `description` and `message` an `id`.
 - **A Radix select's** `content` renders its children as the list, and its
   `item` renders its children as the item's text, as shadcn's do. The
   `placeholder` shows while the field is empty and is also an item that clears
-  it. It works with Radix Select before 2.4, which refuses an item whose value
-  is `''`.
+  it. It needs Radix Select 2.3.0 or later (`radix-ui` 1.5.0): before that, an
+  empty field's hidden native select holds the first option's value.
 - **A Radix radio group's** `item` and `label` are rendered for each option,
-  inside `option` if it's given. The field's label names the group.
+  inside `option` if it's given. The field's label names the group by id
+  (`aria-labelledby`), with no `htmlFor`: a `div` isn't labelable.
 
 A native select always leads with an empty option, labelled by the
-`placeholder`: it's how a native select holds no value.
+`placeholder`: it's how a native select holds no value. So an option's value is
+never `''`: empty is the placeholder's. A Radix select ignores a pick of `''`,
+and a native one would show two empty options.
 
 ### State
 
-A field sets nothing for looks: no classes, no `data-` attributes, and it isn't
-disabled while the form loads. A part reads what it needs itself:
-`useFormActivity()` for `isLoading` and `isSubmitting`, and `useFormField()` for
-the field's `error`.
+A field sets nothing for looks: no classes, no `data-` attributes, no `disabled`
+or `readOnly`. While the form loads, its control ignores changes, so an edit
+can't be kept over the server's values once they arrive. A part reads what it
+needs itself: `useFormActivity()` for `isLoading` and `isSubmitting`, and
+`useFormField()` for the field's `error`.
 
 ```tsx
 const Input = (props: ComponentProps<'input'>) => {

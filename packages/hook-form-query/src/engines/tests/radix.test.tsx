@@ -4,7 +4,13 @@ import { describe, expect, it } from 'vite-plus/test';
 
 import { createFormFactory } from '#/factory/create-form-factory.tsx';
 import { RadixCheckbox, SelectContent, SelectItem } from '#/tests/parts.tsx';
-import { filled, priorities, renderForm, sizes } from '#/tests/render-form.tsx';
+import {
+  filled,
+  priorities,
+  renderForm,
+  renderOwnForm,
+  sizes,
+} from '#/tests/render-form.tsx';
 
 import type { Todo } from '#/tests/render-form.tsx';
 
@@ -203,6 +209,30 @@ describe('a Radix select', () => {
   });
 });
 
+describe('a Radix select opened from the keyboard', () => {
+  // Opening moves the focus into the list, which isn't leaving the field: it's
+  // left, and so checked, once the list closes
+  it('is checked only once its list closes', async () => {
+    const { user } = renderOwnForm(
+      <FormSelect<Todo> name="size" label="Size" options={sizes} />,
+      {
+        mode: 'onTouched',
+        defaultValues: unsized,
+      },
+    );
+
+    trigger('Size').focus();
+    await user.keyboard('{Enter}');
+    await screen.findByRole('listbox');
+
+    expect(screen.queryByText('Required')).toBeNull();
+
+    await user.keyboard('{Escape}');
+
+    expect(await screen.findByText('Required')).toBeDefined();
+  });
+});
+
 describe('a Radix checkbox', () => {
   it('is named by its label, and sends its flag', async () => {
     const { sent, submit, user } = renderForm(
@@ -256,14 +286,23 @@ describe('a Radix switch', () => {
 });
 
 describe('a Radix radio group', () => {
-  it("is named by its label, and each radio by its option's", () => {
+  it("is named and described by its field's, and each radio by its option's", () => {
     renderForm(
-      <FormRadioGroup<Todo> name="size" label="Size" options={sizes} />,
+      <FormRadioGroup<Todo>
+        name="size"
+        label="Size"
+        description="Pick one"
+        options={sizes}
+      />,
     );
 
     const group = screen.getByRole('radiogroup', {
       name: 'Size',
+      description: 'Pick one',
     });
+
+    // A div isn't labelable, so the field's label names it by id alone
+    expect(screen.getByText('Size').hasAttribute('for')).toBe(false);
 
     expect(
       screen.getByRole('radio', {
@@ -308,5 +347,59 @@ describe('a Radix radio group', () => {
         name: 'Small',
       }),
     );
+  });
+});
+
+// Every control joins its own disabled with React Hook Form's
+const fields = (disabled?: boolean) => (
+  <>
+    <FormSelect<Todo>
+      name="priority"
+      label="Priority"
+      options={priorities}
+      disabled={disabled}
+    />
+    <FormCheckbox<Todo> name="done" label="Done" disabled={disabled} />
+    <FormSwitch<Todo> name="done" label="Finished" disabled={disabled} />
+    <FormRadioGroup<Todo>
+      name="size"
+      label="Size"
+      options={sizes}
+      disabled={disabled}
+    />
+  </>
+);
+
+// What a disabled field leaves out of the form: each button, the radios, and
+// the select's hidden native select
+const controls = () => [
+  trigger('Priority'),
+  screen.getByRole('checkbox', {
+    name: 'Done',
+  }),
+  screen.getByRole('switch', {
+    name: 'Finished',
+  }),
+  ...screen.getAllByRole('radio'),
+  ...document.body.querySelectorAll('select'),
+];
+
+describe('a Radix control', () => {
+  it("is disabled by the field's props", () => {
+    renderForm(fields(true));
+
+    for (const control of controls()) {
+      expect(control).toHaveProperty('disabled', true);
+    }
+  });
+
+  it("is disabled by React Hook Form's", () => {
+    renderOwnForm(fields(), {
+      disabled: true,
+    });
+
+    for (const control of controls()) {
+      expect(control).toHaveProperty('disabled', true);
+    }
   });
 });

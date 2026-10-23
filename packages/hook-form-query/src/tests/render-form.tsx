@@ -1,6 +1,8 @@
+import { zodResolver } from '@hookform/resolvers/zod';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import { Form } from '#/components/form.tsx';
@@ -8,7 +10,7 @@ import { zBoolean, zEnum, zNumber, zString } from '#/fields.ts';
 import { useFormMutation } from '#/use-form-mutation.ts';
 
 import type { ReactNode } from 'react';
-import type { DefaultValues } from 'react-hook-form';
+import type { DefaultValues, UseFormProps } from 'react-hook-form';
 
 // One form for every field test: each renders the fields it needs, and the
 // defaults fill the required ones it doesn't
@@ -113,5 +115,37 @@ const renderForm = (
   };
 };
 
-export { filled, priorities, renderForm, sizes };
+type OwnOptions = Pick<
+  UseFormProps<z.input<typeof schema>>,
+  'mode' | 'disabled' | 'defaultValues'
+>;
+
+// The same fields in a form of the test's own, for what useFormMutation
+// doesn't set: another mode, React Hook Form's own disabled. Filled unless
+// given defaults of its own
+const renderOwnForm = (fields: ReactNode, options: OwnOptions = {}) => {
+  const user = userEvent.setup();
+
+  const Harness = () => {
+    const form = useForm<z.input<typeof schema>, unknown, Todo>({
+      defaultValues: filled,
+      ...options,
+      resolver: zodResolver(schema),
+    });
+
+    return (
+      <Form form={form} onSubmit={form.handleSubmit(() => undefined)}>
+        {fields}
+      </Form>
+    );
+  };
+
+  render(<Harness />);
+
+  return {
+    user,
+  };
+};
+
+export { filled, priorities, renderForm, renderOwnForm, schema, sizes };
 export type { Todo };

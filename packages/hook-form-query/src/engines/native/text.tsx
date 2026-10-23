@@ -1,11 +1,11 @@
-import type { ControlProps } from '#/components/form-field.tsx';
+import type { ControlAria } from '#/components/form-field.tsx';
 import type { ControlArgs } from '#/engines/control.ts';
 import type { ChangeEventHandler, ComponentType } from 'react';
 import type { RefCallBack } from 'react-hook-form';
 
 // What a text control is given: an input's or a textarea's own value and
 // events, so React Hook Form reads the event
-type TextBound<TElement extends HTMLElement> = ControlProps & {
+type TextBound<TElement extends HTMLElement> = ControlAria & {
   name: string;
   value: string | number;
   onChange: ChangeEventHandler<TElement>;
@@ -15,7 +15,7 @@ type TextBound<TElement extends HTMLElement> = ControlProps & {
 
 type TextPart<TElement extends HTMLElement> = ComponentType<
   TextBound<TElement> & {
-    disabled: boolean | undefined;
+    disabled?: boolean | undefined;
   }
 >;
 

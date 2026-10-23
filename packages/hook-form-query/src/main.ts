@@ -12,6 +12,9 @@ export { createFormFactory } from './factory/create-form-factory.tsx';
 export { zBoolean, zEnum, zNumber, zString } from './fields.ts';
 export { useFormMutation } from './use-form-mutation.ts';
 
-export type { ControlProps } from './components/form-field.tsx';
+export type { ControlAria } from './components/form-field.tsx';
 export type { Option } from './engines/control.ts';
-export type { FieldParts } from './factory/create-form-factory.tsx';
+export type {
+  FieldPartProps,
+  FieldParts,
+} from './factory/create-form-factory.tsx';

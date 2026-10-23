@@ -1,9 +1,9 @@
-import type { ControlProps } from '#/components/form-field.tsx';
+import type { ControlAria } from '#/components/form-field.tsx';
 import type { ControlArgs, Option } from '#/engines/control.ts';
 import type { ChangeEventHandler, ComponentType, ReactNode } from 'react';
 import type { RefCallBack } from 'react-hook-form';
 
-type Bound = ControlProps & {
+type Bound = ControlAria & {
   name: string;
   value: string;
   onChange: ChangeEventHandler<HTMLSelectElement>;
@@ -16,7 +16,7 @@ type NativeSelectSpec = {
   parts: {
     select: ComponentType<
       Bound & {
-        disabled: boolean | undefined;
+        disabled?: boolean | undefined;
       }
     >;
   };

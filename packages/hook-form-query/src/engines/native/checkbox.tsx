@@ -1,9 +1,9 @@
-import type { ControlProps } from '#/components/form-field.tsx';
+import type { ControlAria } from '#/components/form-field.tsx';
 import type { ControlArgs } from '#/engines/control.ts';
 import type { ChangeEventHandler, ComponentType } from 'react';
 import type { RefCallBack } from 'react-hook-form';
 
-type Bound = ControlProps & {
+type Bound = ControlAria & {
   type: 'checkbox';
   name: string;
   checked: boolean;
@@ -16,7 +16,7 @@ type NativeCheckboxSpec = {
   parts: {
     checkbox: ComponentType<
       Bound & {
-        disabled: boolean | undefined;
+        disabled?: boolean | undefined;
       }
     >;
   };

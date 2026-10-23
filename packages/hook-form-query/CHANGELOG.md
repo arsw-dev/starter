@@ -4,16 +4,20 @@
 
 Fields come from the app's own components: `createFormFactory` takes an engine
 (`native` or `radix`) and the parts around every control, and makes each field
-from the app's components for its control. A field's `className` goes to its
-control, and its `wrapperClassName` to the wrapper. The package renders no
-styles.
+from the app's components for its control. The package renders no styles. The
+Radix engine needs Radix Select 2.3.0 or later (`radix-ui` 1.5.0).
+
+Fixed: a create form's `form.reset()` clears what was typed. Only an update
+keeps the user's edits when its server values change.
 
 Breaking: `FormInput`, `FormTextarea` and `FormSelect` are gone, made instead
-with `createFormFactory`. Nothing is styled, so an app's stylesheet no longer
-names the package as a Tailwind source. A loading form's fields are no longer
-skeletons, nor read-only, and a submitting form no longer pulses:
-`useFormActivity` gives both states to an app's own parts. `useFormField` also
-gives a `labelId`, which `FormLabel` sets.
+with `createFormFactory`. A field's `className` goes to its control, not its
+wrapper, whose class is `wrapperClassName`. Nothing is styled, so an app's
+stylesheet no longer names the package as a Tailwind source. A loading form's
+fields are no longer skeletons or read-only: they ignore changes until the
+server's values arrive. A submitting form no longer pulses: `useFormActivity`
+gives both states to an app's own parts. `useFormField` also gives a `labelId`,
+which `FormLabel` sets; a consumer's own `id` on it still wins.
 
 ## 0.1.0
 

@@ -1,11 +1,13 @@
-import type { ControlProps } from '#/components/form-field.tsx';
+import { useRef } from 'react';
+
+import type { ControlAria } from '#/components/form-field.tsx';
 import type { ControlArgs, Option } from '#/engines/control.ts';
 import type { ComponentType, ReactNode } from 'react';
 import type { RefCallBack } from 'react-hook-form';
 
 // What the trigger is given: it's the button the label names and the form
 // focuses
-type Bound = ControlProps & {
+type Bound = ControlAria & {
   ref: RefCallBack;
   onBlur: () => void;
   children: ReactNode;
@@ -16,7 +18,7 @@ type RadixSelectSpec = {
     root: ComponentType<{
       name: string;
       value: string;
-      disabled: boolean | undefined;
+      disabled?: boolean | undefined;
       onValueChange: (value: string) => void;
       onOpenChange: (open: boolean) => void;
       children: ReactNode;
@@ -44,14 +46,16 @@ type RadixSelectSpec = {
   };
 };
 
-// The clearing item's value. Radix Select before 2.4 throws on an item whose
-// value is '', and '' is what shows the placeholder
+// The clearing item's value. Radix Select 2.3.0 and earlier throw on an item
+// whose value is '', and '' is what shows the placeholder
 const cleared = '@arsw/hook-form-query:cleared';
 
-// Radix reports '' of its own, which would clear the field: before 2.4 while
-// its options register, and on the form's native reset when it mounted empty.
-// So a pick of the clearing item is the field's only way to ''. Picking closes
-// the list, which leaves the field as a native select's blur does
+// Radix can report '' of its own, which would clear the field: on the form's
+// native reset when it mounted empty, and in older versions as its options
+// register. So a pick of the clearing item is the field's only way to ''.
+// Closing the list leaves the field, as a native select's blur does, and the
+// trigger's own blur counts only while the list is closed: opening it from
+// the keyboard moves the focus into the list
 const RadixSelect = ({
   parts,
   field,
@@ -67,24 +71,36 @@ const RadixSelect = ({
   } = parts;
   const { ref, name, value, disabled, onChange, onBlur } = field;
   const { options, placeholder, ...rest } = props;
+  const isOpen = useRef(false);
 
   return (
     <Root
       name={name}
       value={value ?? ''}
-      disabled={disabled}
+      disabled={disabled || rest.disabled}
       onValueChange={(picked) => {
         if (picked !== '') {
           onChange(picked === cleared ? '' : picked);
         }
       }}
       onOpenChange={(open) => {
+        isOpen.current = open;
+
         if (!open) {
           onBlur();
         }
       }}
     >
-      <Trigger {...rest} {...aria} ref={ref} onBlur={onBlur}>
+      <Trigger
+        {...rest}
+        {...aria}
+        ref={ref}
+        onBlur={() => {
+          if (!isOpen.current) {
+            onBlur();
+          }
+        }}
+      >
         <Value placeholder={placeholder} />
       </Trigger>
       <Content>

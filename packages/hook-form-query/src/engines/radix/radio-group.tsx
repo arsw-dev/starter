@@ -1,13 +1,13 @@
 import { Fragment } from 'react';
 
-import type { ControlProps } from '#/components/form-field.tsx';
+import type { ControlAria } from '#/components/form-field.tsx';
 import type { ControlArgs, Option } from '#/engines/control.ts';
 import type { ComponentType, ReactNode } from 'react';
 import type { RefCallBack } from 'react-hook-form';
 
 // The group is a div, which a label can't name, so the field's label names it
 // by id
-type Bound = ControlProps & {
+type Bound = ControlAria & {
   'aria-labelledby': string;
   name: string;
   value: string;
@@ -21,7 +21,7 @@ type RadixRadioGroupSpec = {
   parts: {
     root: ComponentType<
       Bound & {
-        disabled: boolean | undefined;
+        disabled?: boolean | undefined;
       }
     >;
     item: ComponentType<{
@@ -88,6 +88,8 @@ const RadixRadioGroup = ({
     </Root>
   );
 };
+
+RadixRadioGroup.labelledById = true as const;
 
 export { RadixRadioGroup };
 export type { RadixRadioGroupSpec };

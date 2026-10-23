@@ -6,9 +6,10 @@ import {
   FormField,
   useFormField,
 } from '#/components/form-field.tsx';
+import { useFormActivity } from '#/components/form.tsx';
 import { engines } from '#/engines/engines.ts';
 
-import type { ControlProps } from '#/components/form-field.tsx';
+import type { ControlAria } from '#/components/form-field.tsx';
 import type { Control, ControlArgs, ControlSpec } from '#/engines/control.ts';
 import type { Engines } from '#/engines/engines.ts';
 import type { ComponentType, ReactNode } from 'react';
@@ -25,8 +26,10 @@ type Linked = Children & {
   id: string;
 };
 
+// No htmlFor when the control isn't labelable: a radio group's label names it
+// by id
 type Labelling = Linked & {
-  htmlFor: string;
+  htmlFor?: string | undefined;
 };
 
 // The wrapper's class comes from the field, as the control's does
@@ -36,11 +39,15 @@ type Wrapping = Children & {
 
 // The parts around every control of a factory's fields, each given the ids
 // that link it to the control. A plain element unless given
+type FieldPartProps = {
+  wrapper: Wrapping;
+  label: Labelling;
+  description: Linked;
+  message: Linked;
+};
+
 type FieldParts = {
-  wrapper?: ComponentType<Wrapping>;
-  label?: ComponentType<Labelling>;
-  description?: ComponentType<Linked>;
-  message?: ComponentType<Linked>;
+  [TPart in keyof FieldPartProps]?: ComponentType<FieldPartProps[TPart]>;
 };
 
 type FactoryOptions<TEngine extends Engine> = {
@@ -98,10 +105,21 @@ type BodyProps = {
   label: ReactNode;
   description: ReactNode;
   wrapperClassName: string | undefined;
-  children: (aria: ControlProps, labelId: string) => ReactNode;
+  labelledById: boolean;
+  children: (aria: ControlAria, labelId: string) => ReactNode;
 };
 
 type RuntimeProps = FieldProps<FieldValues> & ControlArgs<ControlSpec>['props'];
+
+// A description of false, null or '' (a condition's) renders nothing, so the
+// control isn't described by it
+const isShown = (node: ReactNode) =>
+  node !== undefined && node !== null && node !== false && node !== '';
+
+// While the server's values load, a control takes no input: an edit then
+// would be kept over the values once they arrive. Controls are controlled, so
+// ignoring the change is enough, with nothing set on the control
+const ignore = () => undefined;
 
 // The parts a factory isn't given: plain elements
 const plain: Required<FieldParts> = {
@@ -123,6 +141,7 @@ const Body = ({
   label,
   description,
   wrapperClassName,
+  labelledById,
   children,
 }: BodyProps) => {
   const {
@@ -136,13 +155,13 @@ const Body = ({
 
   return (
     <Wrapper className={wrapperClassName}>
-      <Label id={labelId} htmlFor={controlId}>
+      <Label id={labelId} htmlFor={labelledById ? undefined : controlId}>
         {label}
       </Label>
-      <FormControl described={description !== undefined}>
+      <FormControl described={isShown(description)}>
         {(aria) => children(aria, labelId)}
       </FormControl>
-      {description !== undefined && (
+      {isShown(description) && (
         <Description id={descriptionId}>{description}</Description>
       )}
       {error?.message ? (
@@ -185,6 +204,7 @@ const createFormFactory = <TEngine extends Engine>({
       ...props
     }: RuntimeProps) => {
       const form = useFormContext();
+      const { isLoading } = useFormActivity();
 
       return (
         <FormField
@@ -197,11 +217,19 @@ const createFormFactory = <TEngine extends Engine>({
                 label={label}
                 description={description}
                 wrapperClassName={wrapperClassName}
+                labelledById={EngineControl.labelledById === true}
               >
                 {(aria, labelId) => (
                   <EngineControl
                     parts={parts}
-                    field={field}
+                    field={
+                      isLoading
+                        ? {
+                            ...field,
+                            onChange: ignore,
+                          }
+                        : field
+                    }
                     aria={aria}
                     labelId={labelId}
                     props={props}
@@ -214,9 +242,12 @@ const createFormFactory = <TEngine extends Engine>({
       );
     };
 
+    // One name per control in React's devtools, where each would be Field
+    Field.displayName = `FormField(${String(control)})`;
+
     return Field as FieldComponent<SpecOf<TEngine, TControl>, TParts>;
   };
 };
 
 export { createFormFactory };
-export type { FieldParts };
+export type { FieldPartProps, FieldParts };

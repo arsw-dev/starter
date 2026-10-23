@@ -1,21 +1,20 @@
-import { screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render, screen, waitFor } from '@testing-library/react';
+import { userEvent } from '@testing-library/user-event';
 import { Select } from 'radix-ui';
+import { useFormContext } from 'react-hook-form';
 import { describe, expect, it } from 'vite-plus/test';
 
+import { Form } from '#/components/form.tsx';
 import { createFormFactory } from '#/factory/create-form-factory.tsx';
 import { Input, NativeSelect } from '#/tests/parts.tsx';
-import { filled, renderForm } from '#/tests/render-form.tsx';
+import { filled, renderForm, schema } from '#/tests/render-form.tsx';
+import { useFormMutation } from '#/use-form-mutation.ts';
 
+import type { FieldPartProps } from '#/factory/create-form-factory.tsx';
 import type { Todo } from '#/tests/render-form.tsx';
-import type { ComponentProps, ReactNode } from 'react';
-
-type Children = {
-  children: ReactNode;
-};
-
-type Linked = Children & {
-  id: string;
-};
+import type { ComponentProps } from 'react';
+import type { z } from 'zod';
 
 // A part whose value can't be a string, as a text input's can
 type NumberProps = {
@@ -61,24 +60,20 @@ const FormToneInput = formFactory({
 const marked = createFormFactory({
   engine: 'native',
   field: {
-    wrapper: ({ children }: Children) => <section>{children}</section>,
-    label: ({
-      id,
-      htmlFor,
-      children,
-    }: Linked & {
-      htmlFor: string;
-    }) => (
+    wrapper: ({ className, children }: FieldPartProps['wrapper']) => (
+      <section className={className}>{children}</section>
+    ),
+    label: ({ id, htmlFor, children }: FieldPartProps['label']) => (
       <label id={id} htmlFor={htmlFor} data-part="label">
         {children}
       </label>
     ),
-    description: ({ id, children }: Linked) => (
+    description: ({ id, children }: FieldPartProps['description']) => (
       <small id={id} data-part="description">
         {children}
       </small>
     ),
-    message: ({ id, children }: Linked) => (
+    message: ({ id, children }: FieldPartProps['message']) => (
       <strong id={id} role="alert">
         {children}
       </strong>
@@ -92,6 +87,51 @@ const MarkedInput = marked({
     input: Input,
   },
 });
+
+type UpdateProps = {
+  values: z.input<typeof schema> | undefined;
+  sent: Partial<Todo>[];
+};
+
+// An update form, whose values arrive when the test rerenders it with them
+const UpdateForm = ({ values, sent }: UpdateProps) => {
+  const { form, onSubmit, isLoading } = useFormMutation({
+    schema,
+    update: true,
+    values,
+    mutation: {
+      mutationKey: ['todos', 'update'],
+      mutationFn: async (patch: Partial<Todo>) => {
+        sent.push(patch);
+      },
+    },
+  });
+
+  return (
+    <Form form={form} onSubmit={onSubmit} isLoading={isLoading}>
+      <FormInput<Todo> name="title" label="Title" />
+      <button type="submit">Save</button>
+    </Form>
+  );
+};
+
+// Fails the title as a server would, with no message
+const ServerFailure = () => {
+  const form = useFormContext<Todo>();
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        form.setError('title', {
+          type: 'server',
+        });
+      }}
+    >
+      Fail
+    </button>
+  );
+};
 
 const empty = {
   ...filled,
@@ -198,10 +238,84 @@ describe('a field', () => {
   });
 });
 
+describe('a loading field', () => {
+  it("takes no input until the server's values arrive", async () => {
+    const user = userEvent.setup();
+    const sent: Partial<Todo>[] = [];
+    const client = new QueryClient();
+    const { rerender } = render(
+      <QueryClientProvider client={client}>
+        <UpdateForm values={undefined} sent={sent} />
+      </QueryClientProvider>,
+    );
+    const input = screen.getByRole('textbox', {
+      name: 'Title',
+    });
+
+    await user.type(input, 'Mine');
+
+    expect(input).toHaveProperty('value', '');
+
+    rerender(
+      <QueryClientProvider client={client}>
+        <UpdateForm values={filled} sent={sent} />
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(input).toHaveProperty('value', 'Buy milk');
+    });
+
+    await user.type(input, '!');
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Save',
+      }),
+    );
+
+    await waitFor(() => {
+      expect(sent).toEqual([
+        {
+          title: 'Buy milk!',
+        },
+      ]);
+    });
+  });
+});
+
+describe("a field's ids", () => {
+  it('describe the control only by what renders', async () => {
+    const { user } = renderForm(
+      <>
+        <FormInput<Todo> name="title" label="Title" description={false} />
+        <ServerFailure />
+      </>,
+    );
+    const input = screen.getByRole('textbox', {
+      name: 'Title',
+    });
+
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Fail',
+      }),
+    );
+
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect(input.hasAttribute('aria-describedby')).toBe(false);
+    expect(document.body.querySelector('p')).toBeNull();
+  });
+});
+
 describe("a factory's field parts", () => {
   it('replace the plain ones, linked to the control as they are', async () => {
     const { submit } = renderForm(
-      <MarkedInput<Todo> name="title" label="Title" description="Short" />,
+      <MarkedInput<Todo>
+        name="title"
+        label="Title"
+        description="Short"
+        wrapperClassName="wrapper"
+      />,
       empty,
     );
 
@@ -212,7 +326,7 @@ describe("a factory's field parts", () => {
       description: 'Short Required',
     });
 
-    expect(input.closest('section')).not.toBeNull();
+    expect(input.closest('section')?.className).toBe('wrapper');
     expect(screen.getByText('Title').dataset['part']).toBe('label');
     expect(screen.getByText('Short').dataset['part']).toBe('description');
     expect(screen.getByRole('alert').textContent).toBe('Required');

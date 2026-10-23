@@ -53,7 +53,11 @@ const NewTodo = () => {
   return (
     // A submitting form pulses rather than locking, as a sign to leave it be
     <Form
-      className={`flex flex-col gap-4 ${isSubmitting ? 'animate-pulse' : ''}`}
+      className={
+        isSubmitting
+          ? 'flex animate-pulse flex-col gap-4'
+          : 'flex flex-col gap-4'
+      }
       id={formId}
       form={form}
       onSubmit={onSubmit}

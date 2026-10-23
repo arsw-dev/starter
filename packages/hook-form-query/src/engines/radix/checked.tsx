@@ -1,11 +1,11 @@
-import type { ControlProps } from '#/components/form-field.tsx';
+import type { ControlAria } from '#/components/form-field.tsx';
 import type { ControlArgs } from '#/engines/control.ts';
 import type { ComponentType } from 'react';
 import type { RefCallBack } from 'react-hook-form';
 
 // What a checkbox or a switch is given. Both are buttons, which the label
 // names and the form focuses
-type CheckedBound<TChecked> = ControlProps & {
+type CheckedBound<TChecked> = ControlAria & {
   name: string;
   checked: boolean;
   onCheckedChange: (checked: TChecked) => void;
@@ -15,7 +15,7 @@ type CheckedBound<TChecked> = ControlProps & {
 
 type CheckedPart<TChecked> = ComponentType<
   CheckedBound<TChecked> & {
-    disabled: boolean | undefined;
+    disabled?: boolean | undefined;
   }
 >;
 

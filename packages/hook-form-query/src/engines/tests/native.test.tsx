@@ -8,7 +8,12 @@ import {
   NativeSelect,
   Textarea,
 } from '#/tests/parts.tsx';
-import { filled, priorities, renderForm } from '#/tests/render-form.tsx';
+import {
+  filled,
+  priorities,
+  renderForm,
+  renderOwnForm,
+} from '#/tests/render-form.tsx';
 
 import type { Todo } from '#/tests/render-form.tsx';
 
@@ -72,15 +77,45 @@ describe('a native input', () => {
       ]);
     });
   });
+});
 
+// Every control joins its own disabled with React Hook Form's
+const fields = (disabled?: boolean) => (
+  <>
+    <FormInput<Todo> name="title" label="Title" disabled={disabled} />
+    <FormTextarea<Todo> name="notes" label="Notes" disabled={disabled} />
+    <FormSelect<Todo>
+      name="priority"
+      label="Priority"
+      options={priorities}
+      disabled={disabled}
+    />
+    <FormCheckbox<Todo> name="done" label="Done" disabled={disabled} />
+  </>
+);
+
+const controls = () =>
+  ['Title', 'Notes', 'Priority', 'Done'].map((name) =>
+    screen.getByLabelText(name),
+  );
+
+describe('a native control', () => {
   it("is disabled by the field's props", () => {
-    renderForm(<FormInput<Todo> name="title" label="Title" disabled />);
+    renderForm(fields(true));
 
-    expect(
-      screen.getByRole('textbox', {
-        name: 'Title',
-      }),
-    ).toHaveProperty('disabled', true);
+    for (const control of controls()) {
+      expect(control).toHaveProperty('disabled', true);
+    }
+  });
+
+  it("is disabled by React Hook Form's", () => {
+    renderOwnForm(fields(), {
+      disabled: true,
+    });
+
+    for (const control of controls()) {
+      expect(control).toHaveProperty('disabled', true);
+    }
   });
 });
 
