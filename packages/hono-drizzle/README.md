@@ -50,16 +50,18 @@ type Variables = {
 // src/main.ts
 const app = createApp<Variables>({
   db: (env) => env.DB,
-})
-  .use(signedIn)
-  .route('/', todosRouter);
+  middleware: [signedIn],
+}).route('/', todosRouter);
 
 // src/todos/todos.router.ts
 const todosRouter = createRouter<Variables>();
 ```
 
-The middleware that sets a variable, `c.set('user', user)`, is typed by
-`createMiddleware<AppEnv<Variables>>` from `hono/factory`.
+`middleware` runs on every request, in order, after the database and before the
+routes, so each one can use the database and what the ones before it set. One
+that answers, such as a 401, stops the request there. Each is typed by
+`createMiddleware<AppEnv<Variables>>` from `hono/factory`, and sets a variable
+with `c.set('user', user)`.
 
 ## Errors
 

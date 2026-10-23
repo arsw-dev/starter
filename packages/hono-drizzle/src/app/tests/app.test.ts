@@ -57,7 +57,8 @@ const app = createApp({
     },
   );
 
-// An API with no database, whose requests carry a variable of its own
+// An API with no database, whose requests carry a variable of its own, set
+// by its middleware
 type Variables = {
   greeting: string;
 };
@@ -88,19 +89,39 @@ const greetingRouter = createRouter<Variables>().openapi(
   },
 );
 
-const appWithoutDb = createApp<Variables>()
-  .use(async (c, next) => {
-    c.set('greeting', 'Hello');
+const appWithoutDb = createApp<Variables>({
+  middleware: [
+    async (c, next) => {
+      const greeting = c.req.header('greeting');
 
-    await next();
-  })
-  .route('/', greetingRouter);
+      if (!greeting) {
+        return c.json(
+          {
+            message: 'No greeting',
+          },
+          401,
+        );
+      }
+
+      c.set('greeting', greeting);
+
+      return next();
+    },
+  ],
+}).route('/', greetingRouter);
 
 const request = async (
   path: string,
   to: typeof app | typeof appWithoutDb = app,
+  headers: Record<string, string> = {},
 ) => {
-  const response = await to.request(path, {}, env);
+  const response = await to.request(
+    path,
+    {
+      headers,
+    },
+    env,
+  );
 
   return {
     status: response.status,
@@ -151,11 +172,21 @@ it('gives every handler the database', async () => {
   });
 });
 
-it('runs without a database, with the variables an API declares', async () => {
-  expect(await request('/greeting', appWithoutDb)).toEqual({
+it('runs without a database, and runs its middleware before the routes added after it', async () => {
+  expect(
+    await request('/greeting', appWithoutDb, {
+      greeting: 'Hello',
+    }),
+  ).toEqual({
     status: 200,
     body: {
       greeting: 'Hello',
+    },
+  });
+  expect(await request('/greeting', appWithoutDb)).toEqual({
+    status: 401,
+    body: {
+      message: 'No greeting',
     },
   });
 });

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2
+
+`createApp` takes `middleware`: an API's own, run on every request in order,
+after the database and before its routes.
+
 ## 0.1.1
 
 `createApp`'s `db` is optional: an API with no D1 database leaves it out. And an
