@@ -2,8 +2,9 @@ import { OpenAPIHono } from '@hono/zod-openapi';
 
 import { LOCATIONS } from './http.schemas.ts';
 
+import type { DB } from '#/db/db.ts';
 import type { AppEnv, InvalidRequest, Issue } from './http.types.ts';
-import type { OpenAPIHonoOptions, z } from '@hono/zod-openapi';
+import type { z } from '@hono/zod-openapi';
 
 // What a failed validation tells the client: each problem, where it was and
 // what's wrong, without zod's internals. An unknown key is an issue of its own,
@@ -27,25 +28,24 @@ const toIssues = (target: keyof typeof LOCATIONS, error: z.ZodError): Issue[] =>
     ];
   });
 
-const defaultHook: OpenAPIHonoOptions<AppEnv>['defaultHook'] = (
-  result,
-  ctx,
-) => {
-  if (result.success) return undefined;
-
-  return ctx.json(
-    {
-      message: 'Invalid Request',
-      issues: toIssues(result.target, result.error),
-    } satisfies InvalidRequest,
-    422,
-  );
-};
-
-const createRouter = () =>
-  new OpenAPIHono<AppEnv>({
+const createRouter = <
+  Variables extends object = {
+    db: DB;
+  },
+>() =>
+  new OpenAPIHono<AppEnv<Variables>>({
     strict: false,
-    defaultHook,
+    defaultHook: (result, ctx) => {
+      if (result.success) return undefined;
+
+      return ctx.json(
+        {
+          message: 'Invalid Request',
+          issues: toIssues(result.target, result.error),
+        } satisfies InvalidRequest,
+        422,
+      );
+    },
   });
 
 export { createRouter, toIssues };

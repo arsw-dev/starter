@@ -5,6 +5,7 @@ import { expect, it } from 'vite-plus/test';
 
 import { createApp } from '#/app/app.ts';
 import { NotFound } from '#/http/http.errors.ts';
+import { createRouter } from '#/http/http.router.ts';
 import { json } from '#/http/http.schemas.ts';
 
 // What createApp wires up, checked once with routes of its own rather than
@@ -56,8 +57,50 @@ const app = createApp({
     },
   );
 
-const request = async (path: string) => {
-  const response = await app.request(path, {}, env);
+// An API with no database, whose requests carry a variable of its own
+type Variables = {
+  greeting: string;
+};
+
+const greetingRouter = createRouter<Variables>().openapi(
+  createRoute({
+    method: 'get',
+    path: '/greeting',
+    responses: {
+      200: json(
+        z.object({
+          greeting: z.string(),
+        }),
+        'What the middleware set',
+      ),
+    },
+  }),
+  (c) => {
+    // @ts-expect-error: an API that declares its variables without db has none
+    void c.var.db;
+
+    return c.json(
+      {
+        greeting: c.var.greeting,
+      },
+      200,
+    );
+  },
+);
+
+const appWithoutDb = createApp<Variables>()
+  .use(async (c, next) => {
+    c.set('greeting', 'Hello');
+
+    await next();
+  })
+  .route('/', greetingRouter);
+
+const request = async (
+  path: string,
+  to: typeof app | typeof appWithoutDb = app,
+) => {
+  const response = await to.request(path, {}, env);
 
   return {
     status: response.status,
@@ -104,6 +147,15 @@ it('gives every handler the database', async () => {
     status: 200,
     body: {
       answer: 42,
+    },
+  });
+});
+
+it('runs without a database, with the variables an API declares', async () => {
+  expect(await request('/greeting', appWithoutDb)).toEqual({
+    status: 200,
+    body: {
+      greeting: 'Hello',
     },
   });
 });

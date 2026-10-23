@@ -35,6 +35,32 @@ export default app;
 Each router starts from `createRouter`, which answers a request its route's
 schemas refuse with a 422.
 
+`db` is optional: an API with no D1 database leaves it out. A request's
+variables are `{ db: DB }` unless an API declares its own, all of them, to
+`createApp`, `createRouter` and `AppEnv`; one with no database leaves `db` out,
+and `c.var.db` is then a type error rather than `undefined`:
+
+```ts
+// src/app/app.types.ts
+type Variables = {
+  db: DB;
+  user: User;
+};
+
+// src/main.ts
+const app = createApp<Variables>({
+  db: (env) => env.DB,
+})
+  .use(signedIn)
+  .route('/', todosRouter);
+
+// src/todos/todos.router.ts
+const todosRouter = createRouter<Variables>();
+```
+
+The middleware that sets a variable, `c.set('user', user)`, is typed by
+`createMiddleware<AppEnv<Variables>>` from `hono/factory`.
+
 ## Errors
 
 Every error is JSON with a `message`:
