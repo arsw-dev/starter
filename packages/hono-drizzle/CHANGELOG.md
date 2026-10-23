@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.1
+
+`createApp`'s `db` is optional: an API with no D1 database leaves it out. And an
+API can declare the variables its requests carry, such as a signed-in user, with
+`createApp<Variables>()`, `createRouter<Variables>()` and `AppEnv<Variables>`.
+They're `{ db: DB }` unless it says otherwise, so an API that already uses them
+changes nothing.
+
 ## 0.1.0
 
 The first release: `createApp` and `createRouter`, one error shape (`NotFound`,
