@@ -2,7 +2,7 @@ import { createRoute, z } from '@hono/zod-openapi';
 
 import {
   createRouter,
-  errorSchema,
+  errors,
   invalidSchema,
   json,
   malformedBody,
@@ -20,7 +20,9 @@ const getTodoRoute = createRoute({
   },
   responses: {
     200: json(todosModel.readSchema, 'One todo'),
-    404: json(errorSchema, 'Cannot find todo'),
+    ...errors({
+      404: 'Cannot find todo',
+    }),
     422: json(invalidSchema, 'The id must be a uuid'),
     ...serverError,
   },
@@ -64,7 +66,9 @@ const updateTodoRoute = createRoute({
   },
   responses: {
     200: json(todosModel.readSchema, 'Updated todo'),
-    404: json(errorSchema, 'Cannot find todo'),
+    ...errors({
+      404: 'Cannot find todo',
+    }),
     422: json(invalidSchema, 'The id or update body is invalid'),
     ...malformedBody,
     ...serverError,
@@ -81,7 +85,9 @@ const deleteTodoRoute = createRoute({
     204: {
       description: 'Todo deleted',
     },
-    404: json(errorSchema, 'Cannot find todo'),
+    ...errors({
+      404: 'Cannot find todo',
+    }),
     422: json(invalidSchema, 'The id must be a uuid'),
     ...serverError,
   },

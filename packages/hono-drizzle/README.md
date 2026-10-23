@@ -14,10 +14,11 @@ Its peers: `hono`, `@hono/zod-openapi`, `drizzle-orm` and `zod`.
 
 ## The app
 
-`createApp` gives an API's app before its routes: a Drizzle database on every
-request (`c.var.db`), and the not-found and error handlers. `db` says which of
-the Worker's bindings is its D1 database. The bindings are typed by
-`Cloudflare.Env`, which `wrangler types` writes.
+`createApp` gives an API's whole app: a Drizzle database on every request
+(`c.var.db`), its middleware, its routes, and the not-found and error handlers.
+`db` says which of the Worker's bindings is its D1 database. The bindings are
+typed by `Cloudflare.Env`, which `wrangler types` writes. `routes` maps each
+path to a router:
 
 ```ts
 // src/main.ts
@@ -25,47 +26,61 @@ import { createApp } from '@arsw/hono-drizzle';
 
 import { todosRouter } from './todos/todos.router.ts';
 
-const app = createApp({
+export default createApp({
   db: (env) => env.DB,
-}).route('/', todosRouter);
-
-export default app;
+  routes: {
+    '/': todosRouter,
+  },
+});
 ```
 
-Each router starts from `createRouter`, which answers a request its route's
-schemas refuse with a 422.
+The app's type has every router's routes under its path, so a typed client
+(`hc<typeof app>`) sees them all. Each router starts from `createRouter`, which
+answers a request its route's schemas refuse with a 422.
 
 `db` is optional: an API with no D1 database leaves it out. A request's
 variables are `{ db: DB }` unless an API declares its own, all of them, to
-`createApp`, `createRouter` and `AppEnv`; one with no database leaves `db` out,
-and `c.var.db` is then a type error rather than `undefined`:
+`createRouter` and `AppEnv`; one with no database leaves `db` out, and
+`c.var.db` is then a type error rather than `undefined`. An auth guard, say:
 
 ```ts
-// src/app/app.types.ts
 type Variables = {
   db: DB;
   user: User;
 };
 
-// src/main.ts
-const app = createApp<Variables>({
+const signedIn = createMiddleware<AppEnv<Variables>>(async (c, next) => {
+  // Answers a 401, or sets the user
+  c.set('user', user);
+
+  return next();
+});
+
+const todosRouter = createRouter<Variables>();
+
+export default createApp({
   db: (env) => env.DB,
   middleware: [signedIn],
-}).route('/', todosRouter);
-
-// src/todos/todos.router.ts
-const todosRouter = createRouter<Variables>();
+  routes: {
+    '/': todosRouter,
+  },
+});
 ```
 
-`middleware` runs on every request, in order, after the database and before the
-routes, so each one can use the database and what the ones before it set. One
-that answers, such as a 401, stops the request there. Each is typed by
-`createMiddleware<AppEnv<Variables>>` from `hono/factory`, and sets a variable
-with `c.set('user', user)`.
+`createApp` takes no type arguments: it infers `Variables` from the routers and
+the middleware, so a middleware written inline is typed by the routers it runs
+before. `middleware` runs on every request, in order, after the database and
+before every route, so each one can use the database and what the ones before it
+set. One that answers, such as a 401, stops the request there.
 
-Middleware can also be chained, `createApp<Variables>().use(signedIn)`, or added
-to one router: what `createApp` and `createRouter` return keeps `openapi` after
-`.use()`, where `OpenAPIHono`'s own type would return a plain `Hono`.
+An app with no `routes` can still be given its variables,
+`createApp<Variables>()`, and have middleware and routes chained onto it:
+`createApp<Variables>().use(signedIn).route('/', todosRouter)`. What `createApp`
+and `createRouter` return keeps `openapi` after `.use()`, where `OpenAPIHono`'s
+own type would return a plain `Hono`. With `routes`, give no type arguments:
+TypeScript can't infer the routes beside one that's given, so
+`createApp<Variables>({ routes })` is a type error rather than routes the client
+can't see.
 
 ## Errors
 
@@ -79,10 +94,14 @@ Every error is JSON with a `message`:
 - **500** for anything else, `Internal Server Error`: the error itself is
   logged, never sent.
 
-`json(schema, description)` declares a JSON response. `errorSchema` and
-`invalidSchema` describe the errors' bodies, and `serverError` (the 500) and
-`malformedBody` (the 400 a body that isn't JSON gets) can be spread into any
-route's responses:
+`json(schema, description)` declares a JSON response, and
+`errors({ 404: 'Cannot find todo' })` a route's errors: each status's
+description, with an error body. Each status stays a key of its own, so a
+handler's `c.json(body, 404)` is typed against it, and a client sees the body. A
+422's body has its `issues`, so it's `json(invalidSchema, description)`.
+`errorSchema` and `invalidSchema` describe the errors' bodies, and `serverError`
+(the 500) and `malformedBody` (the 400 a body that isn't JSON gets) can be
+spread into any route's responses:
 
 ```ts
 const getTodoRoute = createRoute({
@@ -93,7 +112,9 @@ const getTodoRoute = createRoute({
   },
   responses: {
     200: json(todosModel.readSchema, 'One todo'),
-    404: json(errorSchema, 'Cannot find todo'),
+    ...errors({
+      404: 'Cannot find todo',
+    }),
     422: json(invalidSchema, 'The id must be a uuid'),
     ...serverError,
   },

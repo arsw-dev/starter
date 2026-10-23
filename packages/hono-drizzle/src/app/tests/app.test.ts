@@ -1,6 +1,7 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { env } from 'cloudflare:workers';
 import { sql } from 'drizzle-orm';
+import { hc } from 'hono/client';
 import { createMiddleware } from 'hono/factory';
 import { expect, expectTypeOf, it } from 'vite-plus/test';
 
@@ -11,6 +12,7 @@ import { json } from '#/http/http.schemas.ts';
 
 import type { AppEnv } from '#/http/http.types.ts';
 import type { OpenAPIHono } from '@hono/zod-openapi';
+import type { InferResponseType } from 'hono/client';
 
 // What createApp wires up, checked once with routes of its own rather than
 // through every domain's: Hono calls the hooks, but registering them is ours
@@ -207,4 +209,129 @@ it('keeps the OpenAPI methods on its type, with middleware given or chained', ()
   expectTypeOf(createApp<Variables>().use('/greeting', greet)).toExtend<
     OpenAPIHono<AppEnv<Variables>>
   >();
+});
+
+// An API wired by createApp alone, with no type arguments: a middleware that
+// says who's asking, typed by the routers it runs before, and routers at two
+// paths, one of them the root
+type Asking = {
+  user: string;
+};
+
+const itemsRouter = createRouter<Asking>().openapi(
+  createRoute({
+    method: 'get',
+    path: '/{id}',
+    request: {
+      params: z.object({
+        id: z.string(),
+      }),
+    },
+    responses: {
+      200: json(
+        z.object({
+          id: z.string(),
+          user: z.string(),
+        }),
+        'One item',
+      ),
+    },
+  }),
+  (c) =>
+    c.json(
+      {
+        id: c.req.valid('param').id,
+        user: c.var.user,
+      },
+      200,
+    ),
+);
+
+const whoamiRouter = createRouter<Asking>().openapi(
+  createRoute({
+    method: 'get',
+    path: '/whoami',
+    responses: {
+      200: json(
+        z.object({
+          user: z.string(),
+        }),
+        "Who's asking",
+      ),
+    },
+  }),
+  (c) =>
+    c.json(
+      {
+        user: c.var.user,
+      },
+      200,
+    ),
+);
+
+const routedApp = createApp({
+  middleware: [
+    async (c, next) => {
+      c.set('user', c.req.header('user') ?? 'Nobody');
+
+      return next();
+    },
+  ],
+  routes: {
+    '/items': itemsRouter,
+    '/': whoamiRouter,
+  },
+});
+
+const client = hc<typeof routedApp>('http://localhost', {
+  fetch: async (input: RequestInfo | URL, init?: RequestInit) =>
+    routedApp.request(input, init, env),
+  headers: {
+    user: 'Ada',
+  },
+});
+
+it('registers each router at its path, after the middleware', async () => {
+  const item = await client.items[':id'].$get({
+    param: {
+      id: 'a',
+    },
+  });
+  const whoami = await client.whoami.$get();
+
+  expect([await item.json(), await whoami.json()]).toEqual([
+    {
+      id: 'a',
+      user: 'Ada',
+    },
+    {
+      user: 'Ada',
+    },
+  ]);
+});
+
+it('gives a typed client every route it registers, and no other', () => {
+  expectTypeOf<
+    InferResponseType<(typeof client.items)[':id']['$get'], 200>
+  >().toEqualTypeOf<{
+    id: string;
+    user: string;
+  }>();
+  expectTypeOf<
+    InferResponseType<typeof client.whoami.$get, 200>
+  >().toEqualTypeOf<{
+    user: string;
+  }>();
+
+  // @ts-expect-error: no router is at /other
+  void client.other;
+});
+
+it('refuses routes when Variables is given, which would lose their types', () => {
+  createApp<Asking>({
+    // @ts-expect-error: TypeScript can't infer the routes beside a Variables given
+    routes: {
+      '/': whoamiRouter,
+    },
+  });
 });
