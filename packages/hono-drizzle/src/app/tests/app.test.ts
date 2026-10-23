@@ -1,12 +1,16 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { env } from 'cloudflare:workers';
 import { sql } from 'drizzle-orm';
-import { expect, it } from 'vite-plus/test';
+import { createMiddleware } from 'hono/factory';
+import { expect, expectTypeOf, it } from 'vite-plus/test';
 
 import { createApp } from '#/app/app.ts';
 import { NotFound } from '#/http/http.errors.ts';
 import { createRouter } from '#/http/http.router.ts';
 import { json } from '#/http/http.schemas.ts';
+
+import type { AppEnv } from '#/http/http.types.ts';
+import type { OpenAPIHono } from '@hono/zod-openapi';
 
 // What createApp wires up, checked once with routes of its own rather than
 // through every domain's: Hono calls the hooks, but registering them is ours
@@ -57,7 +61,8 @@ const app = createApp({
     },
   );
 
-// An API with no database, whose requests carry a variable of its own
+// An API with no database, whose requests carry a variable of its own, set
+// by its middleware
 type Variables = {
   greeting: string;
 };
@@ -88,19 +93,39 @@ const greetingRouter = createRouter<Variables>().openapi(
   },
 );
 
-const appWithoutDb = createApp<Variables>()
-  .use(async (c, next) => {
-    c.set('greeting', 'Hello');
+const greet = createMiddleware<AppEnv<Variables>>(async (c, next) => {
+  const greeting = c.req.header('greeting');
 
-    await next();
-  })
-  .route('/', greetingRouter);
+  if (!greeting) {
+    return c.json(
+      {
+        message: 'No greeting',
+      },
+      401,
+    );
+  }
+
+  c.set('greeting', greeting);
+
+  return next();
+});
+
+const appWithoutDb = createApp<Variables>({
+  middleware: [greet],
+}).route('/', greetingRouter);
 
 const request = async (
   path: string,
   to: typeof app | typeof appWithoutDb = app,
+  headers: Record<string, string> = {},
 ) => {
-  const response = await to.request(path, {}, env);
+  const response = await to.request(
+    path,
+    {
+      headers,
+    },
+    env,
+  );
 
   return {
     status: response.status,
@@ -151,11 +176,35 @@ it('gives every handler the database', async () => {
   });
 });
 
-it('runs without a database, with the variables an API declares', async () => {
-  expect(await request('/greeting', appWithoutDb)).toEqual({
+it('runs without a database, and runs its middleware before the routes added after it', async () => {
+  expect(
+    await request('/greeting', appWithoutDb, {
+      greeting: 'Hello',
+    }),
+  ).toEqual({
     status: 200,
     body: {
       greeting: 'Hello',
     },
   });
+  expect(await request('/greeting', appWithoutDb)).toEqual({
+    status: 401,
+    body: {
+      message: 'No greeting',
+    },
+  });
+});
+
+it('keeps the OpenAPI methods on its type, with middleware given or chained', () => {
+  expectTypeOf(
+    createApp<Variables>({
+      middleware: [greet],
+    }),
+  ).toExtend<OpenAPIHono<AppEnv<Variables>>>();
+  expectTypeOf(createApp<Variables>().use(greet)).toExtend<
+    OpenAPIHono<AppEnv<Variables>>
+  >();
+  expectTypeOf(createApp<Variables>().use('/greeting', greet)).toExtend<
+    OpenAPIHono<AppEnv<Variables>>
+  >();
 });
