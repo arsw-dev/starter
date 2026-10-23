@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.3
+
+`errors({ 404: 'Cannot find todo' })` declares a route's errors by status, each
+an error body with its description, as `json(errorSchema, description)` would.
+And `createApp` takes `routes`, each path's router, registered after the
+middleware: an API's whole wiring is one call, and its type has every route, for
+a typed client. With `routes`, `createApp` takes no type arguments: it infers
+`Variables` from the routers and the middleware.
+
 ## 0.1.2
 
 `createApp` takes `middleware`: an API's own, run on every request in order,
