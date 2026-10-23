@@ -3,14 +3,10 @@ import { createFileRoute } from '@tanstack/react-router';
 import { Suspense } from 'react';
 import { toast } from 'sonner';
 
-import {
-  Form,
-  FormInput,
-  FormSelect,
-  useFormMutation,
-} from '@arsw/hook-form-query';
+import { Form, useFormMutation } from '@arsw/hook-form-query';
 import { ApiError } from '@arsw/start-hono';
 
+import { FormInput, FormSelect } from '#/components/form-fields.tsx';
 import { todosApi } from '#/todos/todos.api.ts';
 import { createTodoSchema } from '#/todos/todos.forms.ts';
 
@@ -55,8 +51,9 @@ const NewTodo = () => {
   });
 
   return (
+    // A submitting form pulses rather than locking, as a sign to leave it be
     <Form
-      className="flex flex-col gap-4"
+      className={`flex flex-col gap-4 ${isSubmitting ? 'animate-pulse' : ''}`}
       id={formId}
       form={form}
       onSubmit={onSubmit}

@@ -1,0 +1,195 @@
+import { useFormContext } from 'react-hook-form';
+
+import {
+  FieldItem,
+  FormControl,
+  FormField,
+  useFormField,
+} from '#/components/form-field.tsx';
+import { engines } from '#/engines/engines.ts';
+
+import type { ControlProps } from '#/components/form-field.tsx';
+import type { Control, ControlArgs, ControlSpec } from '#/engines/control.ts';
+import type { Engines } from '#/engines/engines.ts';
+import type { ComponentType, ReactNode } from 'react';
+import type { FieldPath, FieldValues } from 'react-hook-form';
+
+type Engine = keyof Engines;
+
+type Children = {
+  children: ReactNode;
+};
+
+// A part the control is linked to by its id
+type Linked = Children & {
+  id: string;
+};
+
+type Labelling = Linked & {
+  htmlFor: string;
+};
+
+// The parts around every control of a factory's fields, each given the ids
+// that link it to the control. A plain element unless given
+type FieldParts = {
+  wrapper?: ComponentType<Children>;
+  label?: ComponentType<Labelling>;
+  description?: ComponentType<Linked>;
+  message?: ComponentType<Linked>;
+};
+
+type FactoryOptions<TEngine extends Engine> = {
+  engine: TEngine;
+  field?: FieldParts;
+};
+
+type SpecOf<
+  TEngine extends Engine,
+  TControl extends keyof Engines[TEngine],
+> = Engines[TEngine][TControl] extends ControlSpec
+  ? Engines[TEngine][TControl]
+  : never;
+
+type ControlOptions<TControl, TParts> = {
+  control: TControl;
+  parts: TParts;
+};
+
+// What every field takes, whatever its control
+type FieldProps<TFormValues extends FieldValues> = {
+  // Never a source for TFormValues: TypeScript would otherwise read the form's
+  // type back out of the name, and accept any name
+  name: NoInfer<FieldPath<TFormValues>>;
+  label: ReactNode;
+  description?: ReactNode;
+};
+
+type PropsOf<TPart> =
+  TPart extends ComponentType<infer TProps> ? TProps : never;
+
+// The main part's own props, less what the engine sets on it and what the
+// field takes for itself. A default would make the part uncontrolled
+type Passthrough<TSpec extends ControlSpec, TParts> = Omit<
+  PropsOf<TParts[TSpec['main'] & keyof TParts]>,
+  | keyof TSpec['bound']
+  | keyof TSpec['props']
+  | keyof FieldProps<FieldValues>
+  | 'defaultValue'
+  | 'defaultChecked'
+>;
+
+// TFormValues has no usable default: without the form's type, no name is one
+// of its fields, so leaving it out doesn't compile
+type FieldComponent<TSpec extends ControlSpec, TParts> = <
+  TFormValues extends FieldValues = never,
+>(
+  props: FieldProps<TFormValues> & TSpec['props'] & Passthrough<TSpec, TParts>,
+) => ReactNode;
+
+type BodyProps = {
+  parts: Required<FieldParts>;
+  label: ReactNode;
+  description: ReactNode;
+  children: (aria: ControlProps, labelId: string) => ReactNode;
+};
+
+type RuntimeProps = FieldProps<FieldValues> & ControlArgs<ControlSpec>['props'];
+
+// The parts a factory isn't given: plain elements
+const plain: Required<FieldParts> = {
+  wrapper: ({ children }: Children) => <div>{children}</div>,
+  label: ({ id, htmlFor, children }: Labelling) => (
+    <label id={id} htmlFor={htmlFor}>
+      {children}
+    </label>
+  ),
+  description: ({ id, children }: Linked) => <p id={id}>{children}</p>,
+  message: ({ id, children }: Linked) => <p id={id}>{children}</p>,
+};
+
+// A field's label, description and error around its control, all linked
+const Body = ({ parts, label, description, children }: BodyProps) => {
+  const {
+    wrapper: Wrapper,
+    label: Label,
+    description: Description,
+    message: Message,
+  } = parts;
+  const { error, labelId, controlId, descriptionId, messageId } =
+    useFormField();
+
+  return (
+    <Wrapper>
+      <Label id={labelId} htmlFor={controlId}>
+        {label}
+      </Label>
+      <FormControl described={description !== undefined}>
+        {(aria) => children(aria, labelId)}
+      </FormControl>
+      {description !== undefined && (
+        <Description id={descriptionId}>{description}</Description>
+      )}
+      {error?.message ? (
+        <Message id={messageId}>{error.message}</Message>
+      ) : null}
+    </Wrapper>
+  );
+};
+
+// Fields from one engine's controls, around the consumer's own components. The
+// package renders no styles: every part is the consumer's, or a plain element
+const createFormFactory = <TEngine extends Engine>({
+  engine,
+  field: fieldParts = {},
+}: FactoryOptions<TEngine>) => {
+  const shared = {
+    ...plain,
+    ...fieldParts,
+  };
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- engines pairs each control with its spec, which a lookup through the factory's type parameters can't follow
+  const controls = engines[engine] as unknown as Record<
+    keyof Engines[TEngine],
+    Control<ControlSpec>
+  >;
+
+  return <
+    TControl extends keyof Engines[TEngine],
+    TParts extends SpecOf<TEngine, TControl>['parts'],
+  >({
+    control,
+    parts,
+  }: ControlOptions<TControl, TParts>) => {
+    const EngineControl: Control<ControlSpec> = controls[control];
+
+    const Field = ({ name, label, description, ...props }: RuntimeProps) => {
+      const form = useFormContext();
+
+      return (
+        <FormField
+          control={form.control}
+          name={name}
+          render={({ field }) => (
+            <FieldItem>
+              <Body parts={shared} label={label} description={description}>
+                {(aria, labelId) => (
+                  <EngineControl
+                    parts={parts}
+                    field={field}
+                    aria={aria}
+                    labelId={labelId}
+                    props={props}
+                  />
+                )}
+              </Body>
+            </FieldItem>
+          )}
+        />
+      );
+    };
+
+    return Field as FieldComponent<SpecOf<TEngine, TControl>, TParts>;
+  };
+};
+
+export { createFormFactory };
+export type { FieldParts };

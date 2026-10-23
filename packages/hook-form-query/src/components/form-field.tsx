@@ -1,8 +1,6 @@
 import { createContext, use, useId } from 'react';
 import { Controller } from 'react-hook-form';
 
-import { cx } from './class-names.ts';
-
 import type { ComponentProps, ReactNode } from 'react';
 import type {
   ControllerFieldState,
@@ -11,9 +9,10 @@ import type {
   FieldValues,
 } from 'react-hook-form';
 
-// The building blocks every field component is made of, after shadcn's form:
-// FormField binds a field, FormItem gives its parts one id, and the parts link
-// the label, description and error to the control
+// The building blocks every field is made of, after shadcn's form: FormField
+// binds a field, FormItem gives its parts one id, and the parts link the label,
+// description and error to the control. None is styled: each takes the props
+// of the element it renders
 
 // What the parts read of a Controller's render arguments
 type FieldContextValue = {
@@ -34,6 +33,10 @@ type FormControlProps = {
   // Whether a FormDescription is rendered: only ids that exist are named
   described?: boolean;
   children: (props: ControlProps) => ReactNode;
+};
+
+type FieldItemProps = {
+  children: ReactNode;
 };
 
 const FieldContext = createContext<FieldContextValue | null>(null);
@@ -71,36 +74,30 @@ const useFormField = () => {
   return {
     name: field.field.name,
     error: field.fieldState.error,
+    labelId: `${id}-label`,
     controlId: `${id}-control`,
     descriptionId: `${id}-description`,
     messageId: `${id}-message`,
   };
 };
 
-const FormItem = ({ className, ...props }: ComponentProps<'div'>) => {
+// The id without an element, for a field whose parts are its own components
+const FieldItem = ({ children }: FieldItemProps) => {
   const id = useId();
 
-  return (
-    <ItemContext value={id}>
-      <div className={cx('flex flex-col gap-1', className)} {...props} />
-    </ItemContext>
-  );
+  return <ItemContext value={id}>{children}</ItemContext>;
 };
 
-const FormLabel = ({ className, ...props }: ComponentProps<'label'>) => {
-  const { error, controlId } = useFormField();
+const FormItem = (props: ComponentProps<'div'>) => (
+  <FieldItem>
+    <div {...props} />
+  </FieldItem>
+);
 
-  return (
-    <label
-      className={cx(
-        'text-sm font-medium text-slate-700',
-        error && 'text-red-600',
-        className,
-      )}
-      htmlFor={controlId}
-      {...props}
-    />
-  );
+const FormLabel = (props: ComponentProps<'label'>) => {
+  const { labelId, controlId } = useFormField();
+
+  return <label id={labelId} htmlFor={controlId} {...props} />;
 };
 
 // Hands its control the ids and state the other parts point at, where shadcn's
@@ -119,24 +116,14 @@ const FormControl = ({ described = false, children }: FormControlProps) => {
   });
 };
 
-const FormDescription = ({ className, ...props }: ComponentProps<'p'>) => {
+const FormDescription = (props: ComponentProps<'p'>) => {
   const { descriptionId } = useFormField();
 
-  return (
-    <p
-      id={descriptionId}
-      className={cx('text-sm text-slate-500', className)}
-      {...props}
-    />
-  );
+  return <p id={descriptionId} {...props} />;
 };
 
 // The field's error, or its children when there's none
-const FormMessage = ({
-  className,
-  children,
-  ...props
-}: ComponentProps<'p'>) => {
+const FormMessage = ({ children, ...props }: ComponentProps<'p'>) => {
   const { error, messageId } = useFormField();
   const body = error ? error.message : children;
 
@@ -145,17 +132,14 @@ const FormMessage = ({
   }
 
   return (
-    <p
-      id={messageId}
-      className={cx('text-sm font-medium text-red-600', className)}
-      {...props}
-    >
+    <p id={messageId} {...props}>
       {body}
     </p>
   );
 };
 
 export {
+  FieldItem,
   FormControl,
   FormDescription,
   FormField,
@@ -164,3 +148,4 @@ export {
   FormMessage,
   useFormField,
 };
+export type { ControlProps };

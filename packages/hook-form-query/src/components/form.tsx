@@ -1,8 +1,6 @@
 import { createContext, use } from 'react';
 import { FormProvider } from 'react-hook-form';
 
-import { cx } from './class-names.ts';
-
 import type { ComponentProps } from 'react';
 import type {
   FieldValues,
@@ -45,14 +43,13 @@ const activityOf = (isLoading: boolean, isSubmitting: boolean): Activity => {
 };
 
 // The schema validates, so the browser's own checks stay off: they'd stop a
-// submit before the schema's messages could show. A submitting form pulses
-// rather than locking, as a sign to leave it be
+// submit before the schema's messages could show. How a loading or submitting
+// form looks is the app's: its fields read useFormActivity
 const Form = <TInput extends FieldValues, TOutput extends FieldValues>({
   form,
   onSubmit,
   isLoading = false,
   isSubmitting = false,
-  className,
   ...props
 }: FormProps<TInput, TOutput>) => {
   const activity = activityOf(isLoading, isSubmitting);
@@ -64,7 +61,6 @@ const Form = <TInput extends FieldValues, TOutput extends FieldValues>({
           {...props}
           noValidate
           aria-busy={activity !== 'idle'}
-          className={cx(isSubmitting && 'animate-pulse', className)}
           onSubmit={(event) => {
             void onSubmit(event);
           }}
