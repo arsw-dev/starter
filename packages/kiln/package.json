@@ -1,12 +1,12 @@
 {
-  "name": "@arsw/hono-drizzle",
-  "version": "0.1.3",
-  "description": "A Hono API on Cloudflare Workers and D1: OpenAPI routes with one error shape, and Drizzle tables and Zod schemas from one model",
+  "name": "@arsw/kiln",
+  "version": "0.0.0",
+  "description": "An API framework on Hono for Cloudflare Workers: OpenAPI routes with one error shape, and, under /model, Drizzle tables on D1 and Zod schemas from one model",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/arsw-dev/starter.git",
-    "directory": "packages/hono-drizzle"
+    "directory": "packages/kiln"
   },
   "files": [
     "dist",
@@ -17,13 +17,18 @@
     "#/*": "./src/*"
   },
   "exports": {
-    ".": "./src/main.ts"
+    ".": "./src/main.ts",
+    "./model": "./src/model.ts"
   },
   "publishConfig": {
     "exports": {
       ".": {
         "types": "./dist/main.d.mts",
         "default": "./dist/main.mjs"
+      },
+      "./model": {
+        "types": "./dist/model.d.mts",
+        "default": "./dist/model.mjs"
       }
     },
     "access": "public"
@@ -50,5 +55,10 @@
     "drizzle-orm": "^0.45.4",
     "hono": "^4.13.13",
     "zod": "^4.6.7"
+  },
+  "peerDependenciesMeta": {
+    "drizzle-orm": {
+      "optional": true
+    }
   }
 }

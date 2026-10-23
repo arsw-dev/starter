@@ -1,9 +1,10 @@
-import { createApp } from '@arsw/hono-drizzle';
+import { createApp } from '@arsw/kiln';
+import { database } from '@arsw/kiln/model';
 
 import { todosRouter } from './todos/todos.router.ts';
 
 export default createApp({
-  db: (env) => env.DB,
+  middleware: [database((env) => env.DB)],
   routes: {
     '/': todosRouter,
   },

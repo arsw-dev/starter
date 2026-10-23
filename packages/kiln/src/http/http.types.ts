@@ -1,4 +1,3 @@
-import type { DB } from '#/db/db.ts';
 import type {
   errorSchema,
   invalidSchema,
@@ -8,13 +7,8 @@ import type { z } from '@hono/zod-openapi';
 
 // The app, as every router and handler sees it. Its bindings are the Worker's
 // own, which wrangler types adds to Cloudflare.Env. Its variables are every one
-// a request carries: the database by default, or what an API declares, so one
-// with no database, or with variables of its own, says so
-type AppEnv<
-  Variables extends object = {
-    db: DB;
-  },
-> = {
+// a request carries, as an API declares them: none unless it says so
+type AppEnv<Variables extends object = {}> = {
   Bindings: Cloudflare.Env;
   Variables: Variables;
 };

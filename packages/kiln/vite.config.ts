@@ -12,5 +12,5 @@ export default defineConfig({
       },
     }),
   ],
-  pack: pack(['src/main.ts']),
+  pack: pack(['src/main.ts', 'src/model.ts']),
 });
