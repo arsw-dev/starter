@@ -1,6 +1,6 @@
 {
   "name": "@arsw/start-hono",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A TanStack Start front end's way to its Hono API over a Cloudflare service binding: typed calls, query and mutation options, and errors",
   "license": "MIT",
   "repository": {
