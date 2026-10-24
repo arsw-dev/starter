@@ -1,7 +1,7 @@
 import { createApp } from '@arsw/kiln';
 import { database } from '@arsw/kiln/model';
 
-import { todosRouter } from './todos/todos.router.ts';
+import { todosRoutes } from './todos/todos.routes.ts';
 
 import type { DB } from '@arsw/kiln/model';
 
@@ -20,6 +20,6 @@ declare module '@arsw/kiln' {
 export default createApp({
   middleware: [database((env) => env.DB)],
   routes: {
-    '/': todosRouter,
+    '/todos': todosRoutes,
   },
 });

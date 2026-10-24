@@ -36,6 +36,10 @@ type AppEnv = EnvWith<Variables>;
 // router's validation answers one
 type ErrorStatus = Exclude<ClientErrorStatusCode | ServerErrorStatusCode, 422>;
 
+// A route's or a middleware's errors: what each status means where it's
+// declared ('Cannot find todo'), which an error class can't know
+type ErrorDescriptions = Partial<Record<ErrorStatus, string>>;
+
 // What an error sends, from the schemas the document describes it with
 type ErrorBody = z.infer<typeof errorSchema>;
 type Issue = z.infer<typeof issueSchema>;
@@ -45,6 +49,7 @@ export type {
   AppEnv,
   EnvWith,
   ErrorBody,
+  ErrorDescriptions,
   ErrorStatus,
   InvalidRequest,
   Issue,

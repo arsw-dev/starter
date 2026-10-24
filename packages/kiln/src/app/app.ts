@@ -1,55 +1,102 @@
-import { notFound, onError } from '#/http/http.errors.ts';
-import { createRouter } from '#/http/http.router.ts';
+import { OpenAPIHono } from '@hono/zod-openapi';
 
+import { notFound, onError } from '#/http/http.errors.ts';
+import { toRouter } from '#/http/http.route.ts';
+import { createRouter } from '#/http/http.router.ts';
+import { errors } from '#/http/http.schemas.ts';
+
+import type { Middleware } from '#/http/http.middleware.ts';
+import type { AnyRoute } from '#/http/http.route.ts';
 import type { Router } from '#/http/http.router.ts';
 import type { AppEnv } from '#/http/http.types.ts';
-import type { OpenAPIHono } from '@hono/zod-openapi';
 import type { MiddlewareHandler, Schema } from 'hono';
-import type { MergePath, MergeSchemaPath } from 'hono/types';
+import type { ExtractSchema, MergePath, MergeSchemaPath } from 'hono/types';
 import type { UnionToIntersection } from 'hono/utils/types';
 
-// Each path's router gives its own schema, so a typed client sees its routes
-type Routes<Schemas extends Record<string, Schema>> = {
-  [Path in keyof Schemas]: OpenAPIHono<AppEnv, Schemas[Path], string>;
+// What a path mounts: a record of routes, or a router, for anything a route
+// can't say
+type Mounted = Record<string, AnyRoute> | OpenAPIHono<AppEnv, Schema, string>;
+
+type Options<Routes extends Record<string, Mounted>> = {
+  middleware?: (MiddlewareHandler<AppEnv> | Middleware)[];
+  routes?: Routes;
 };
 
-type Options<Schemas extends Record<string, Schema>> = {
-  middleware?: MiddlewareHandler<AppEnv>[];
-  routes?: Routes<Schemas>;
-};
+// The routes a path mounts, as a typed client sees them: a record's, as
+// toRouter registers them, or a router's own
+type SchemaOf<Routes> = SchemaOfRouter<
+  Routes,
+  ReturnType<typeof toRouter<Extract<Routes, Record<string, AnyRoute>>>>
+>;
 
-// Every router's schema under its path, as app.route() would merge them. The
+// The router is its own type argument, read only in a branch on Routes: so it
+// waits for Routes to be known. Read where Routes is still generic, the
+// router's schema is too, and Hono's ExtractSchema answers Schema
+type SchemaOfRouter<Routes, Router_> =
+  Routes extends Record<string, AnyRoute>
+    ? ExtractSchema<Router_>
+    : ExtractSchema<Routes>;
+
+// Every path's routes under its path, as app.route() would merge them. The
 // result is narrowed back to a Schema with infer: an intersection with Schema
 // compiles, but makes every route unknown to the client. No routes given and an
 // empty record both have none
-type RoutesSchema<Schemas extends Record<string, Schema>> = [
-  keyof Schemas,
+type RoutesSchema<Routes extends Record<string, Mounted>> = [
+  keyof Routes,
 ] extends [never]
   ? {}
   : UnionToIntersection<
         {
-          [Path in keyof Schemas & string]: MergeSchemaPath<
-            Schemas[Path],
+          [Path in keyof Routes & string]: MergeSchemaPath<
+            SchemaOf<Routes[Path]>,
             MergePath<'/', Path>
           >;
-        }[keyof Schemas & string]
+        }[keyof Routes & string]
       > extends infer S extends Schema
     ? S
     : never;
 
 // An API's app: its middleware, in order, then its routes, so no route comes
 // before a middleware. Its variables are the ones the API registers
-const createApp = <const Schemas extends Record<string, Schema> = {}>({
+const createApp = <const Routes extends Record<string, Mounted> = {}>({
   middleware = [],
   routes,
-}: Options<Schemas> = {}) => {
+}: Options<Routes> = {}) => {
   const app = createRouter();
 
   // Hono takes a missing handler as a handler, so none means no call
-  for (const handler of middleware) app.use(handler);
+  for (const entry of middleware) {
+    app.use(typeof entry === 'function' ? entry : entry.handler);
+  }
 
-  for (const [path, router] of Object.entries(routes ?? {})) {
-    app.route(path, router);
+  for (const [path, mounted] of Object.entries(routes ?? {})) {
+    app.route(
+      path,
+      mounted instanceof OpenAPIHono ? mounted : toRouter(mounted),
+    );
+  }
+
+  // Every route the app registers runs after the middleware, so it can answer
+  // with the middleware's errors: each route's definition gets them, beside
+  // its own, which win. The definition is the app's own copy, but its
+  // responses are shared with the route itself, so they're replaced, never
+  // changed
+  const middlewareErrors = errors(
+    Object.assign(
+      {},
+      ...middleware.map((entry) =>
+        typeof entry === 'function' ? {} : entry.errors,
+      ),
+    ),
+  );
+
+  for (const definition of app.openAPIRegistry.definitions) {
+    if (definition.type === 'route') {
+      definition.route.responses = {
+        ...middlewareErrors,
+        ...definition.route.responses,
+      };
+    }
   }
 
   app.notFound(notFound);
@@ -57,7 +104,7 @@ const createApp = <const Schemas extends Record<string, Schema> = {}>({
 
   // app.route() returns each router's routes in its type, which a loop can't
   // carry: the routes are on the app, and RoutesSchema says which
-  return app as Router<AppEnv, RoutesSchema<Schemas>>;
+  return app as Router<AppEnv, RoutesSchema<Routes>>;
 };
 
 export { createApp };
