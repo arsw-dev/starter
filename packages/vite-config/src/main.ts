@@ -135,6 +135,27 @@ const lint = {
       },
     },
     {
+      // A declaration file's interfaces are there to merge, as an
+      // augmentation does, which a type alias can't
+      files: ['**/*.d.ts'],
+      rules: {
+        'typescript/consistent-type-definitions': 'off',
+      },
+    },
+    {
+      // An entry references its declaration files, so any program that
+      // includes it, a front end's typed client among them, has them too
+      files: ['**/main.ts'],
+      rules: {
+        'typescript/triple-slash-reference': [
+          'error',
+          {
+            path: 'always',
+          },
+        ],
+      },
+    },
+    {
       // A route file keeps TanStack's layout: the exported route first, then
       // its component as a function declaration, which hoisting makes work
       files: [
