@@ -149,10 +149,10 @@ variables, for one written on its own.
 ## Variables
 
 The variables a request carries are declared once, by adding them to Kiln's
-`Register`:
+`Register`, in a declaration file of their own:
 
 ```ts
-// src/main.ts
+// src/kiln.d.ts
 import type { DB } from '@arsw/kiln/model';
 
 declare module '@arsw/kiln' {
@@ -167,9 +167,14 @@ declare module '@arsw/kiln' {
 
 Every route, router and middleware reads them from there, so none takes a type
 argument: `c.var.user` is a `User`, and `c.var.role`, never registered, is a
-type error. With nothing registered, a request carries none. Declare them in the
-file with the app: anything that type-checks the app's type, such as a front
-end's typed client, then has them too.
+type error. With nothing registered, a request carries none. The app's
+`src/main.ts` references the file, so anything that type-checks the app's type,
+such as a front end's typed client, has them too:
+
+```ts
+// src/main.ts
+/// <reference path="./kiln.d.ts" />
+```
 
 A D1 database is a middleware like any other, `database` from
 `@arsw/kiln/model`, first so the rest can use `c.var.db`. It sets `db`, which an
