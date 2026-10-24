@@ -1,11 +1,12 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { env } from 'cloudflare:workers';
 import { hc } from 'hono/client';
-import { expect, expectTypeOf, it } from 'vite-plus/test';
+import { describe, expect, expectTypeOf, it } from 'vite-plus/test';
 
 import { createApp } from '#/app/app.ts';
 import { NotFound } from '#/http/http.errors.ts';
-import { createMiddleware } from '#/http/http.middleware.ts';
+import { createMiddleware, defineMiddleware } from '#/http/http.middleware.ts';
+import { defineRoute } from '#/http/http.route.ts';
 import { createRouter } from '#/http/http.router.ts';
 import { json } from '#/http/http.schemas.ts';
 
@@ -271,4 +272,203 @@ it('gives a typed client every route it registers, and no other', () => {
 
   // @ts-expect-error: no router is at /other
   void client.other;
+});
+
+// Each GET operation in an app's document, by path: its statuses and what
+// each one means
+const documented = (from: OpenAPIHono<AppEnv>) => {
+  const { paths = {} } = from.getOpenAPI31Document({
+    openapi: '3.1.0',
+    info: {
+      title: 'Items',
+      version: '1.0.0',
+    },
+  });
+
+  return Object.fromEntries(
+    Object.entries(paths).map(([path, item]) => [
+      path,
+      Object.fromEntries(
+        Object.entries(item.get?.responses ?? {}).map(
+          ([status, response]: [
+            string,
+            {
+              description?: string;
+            },
+          ]) => [status, response.description],
+        ),
+      ),
+    ]),
+  );
+};
+
+describe("a middleware's errors", () => {
+  // An auth guard: it answers a 401 or a 403, or lets the request through
+  const guard = defineMiddleware(
+    async (c, next) => {
+      const token = c.req.header('authorization');
+
+      if (!token) {
+        return c.json(
+          {
+            message: 'No token',
+          },
+          401,
+        );
+      }
+
+      if (token !== 'Bearer good') {
+        return c.json(
+          {
+            message: 'Bad token',
+          },
+          403,
+        );
+      }
+
+      return next();
+    },
+    {
+      errors: {
+        401: 'No token was sent',
+        403: 'The token was refused',
+      },
+    },
+  );
+
+  const listItems = defineRoute({
+    method: 'get',
+    path: '/',
+    response: z.array(z.string()),
+    description: 'All items',
+    handler: (c) => c.json([], 200),
+  });
+
+  const getSecret = defineRoute({
+    method: 'get',
+    path: '/',
+    response: z.string(),
+    description: 'The secret',
+    errors: {
+      403: 'Only an admin may read it',
+    },
+    handler: (c) => c.json('secret', 200),
+  });
+
+  const itemsRoutes = {
+    listItems,
+  };
+
+  const pingRouter = createRouter().openapi(
+    createRoute({
+      method: 'get',
+      path: '/ping',
+      responses: {
+        200: json(z.string(), 'Pong'),
+      },
+    }),
+    (c) => c.json('pong', 200),
+  );
+
+  const guarded = createApp({
+    middleware: [async (_, next) => next(), guard],
+    routes: {
+      '/items': itemsRoutes,
+      '/secret': {
+        getSecret,
+      },
+      '/': pingRouter,
+    },
+  });
+
+  // The status the guarded app answers /items with, given a token or none
+  const statusFor = async (authorization?: string) => {
+    const response = await guarded.request(
+      '/items',
+      {
+        headers: authorization
+          ? {
+              authorization,
+            }
+          : {},
+      },
+      env,
+    );
+
+    return response.status;
+  };
+
+  it('adds them to every route, records and routers alike', () => {
+    expect(documented(guarded)).toEqual({
+      '/items': {
+        200: 'All items',
+        401: 'No token was sent',
+        403: 'The token was refused',
+        500: 'Something failed on the server',
+      },
+      '/secret': {
+        200: 'The secret',
+        401: 'No token was sent',
+        403: 'Only an admin may read it',
+        500: 'Something failed on the server',
+      },
+      '/ping': {
+        200: 'Pong',
+        401: 'No token was sent',
+        403: 'The token was refused',
+      },
+    });
+  });
+
+  it("keeps a route's own description for a status it declares too", () => {
+    expect(documented(guarded)['/secret']?.[403]).toBe(
+      'Only an admin may read it',
+    );
+  });
+
+  it('adds nothing for a plain middleware', () => {
+    const plain = createApp({
+      middleware: [async (_, next) => next()],
+      routes: {
+        '/items': itemsRoutes,
+      },
+    });
+
+    expect(documented(plain)['/items']).toEqual({
+      200: 'All items',
+      500: 'Something failed on the server',
+    });
+  });
+
+  it('leaves the routes themselves as they were, for any other app', () => {
+    const unguarded = createApp({
+      routes: {
+        '/items': itemsRoutes,
+      },
+    });
+
+    expect(documented(unguarded)['/items']).toEqual({
+      200: 'All items',
+      500: 'Something failed on the server',
+    });
+  });
+
+  it('runs its handler before every route', async () => {
+    expect(
+      await Promise.all([
+        statusFor(),
+        statusFor('Bearer bad'),
+        statusFor('Bearer good'),
+      ]),
+    ).toEqual([401, 403, 200]);
+  });
+
+  it("refuses the 500, which is onError's", () => {
+    defineMiddleware(async (_, next) => next(), {
+      errors: {
+        // @ts-expect-error: onError's 500 is Kiln's
+        500: 'Something failed',
+      },
+    });
+  });
 });
