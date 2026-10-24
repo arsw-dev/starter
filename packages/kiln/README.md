@@ -18,24 +18,74 @@ Drizzle.
 ## The app
 
 `createApp` gives an API's whole app: its middleware, its routes, and the
-not-found and error handlers. `routes` maps each path to a router:
+not-found and error handlers. `routes` maps each path to a record of routes, or
+to a router:
 
 ```ts
 // src/main.ts
 import { createApp } from '@arsw/kiln';
 
-import { todosRouter } from './todos/todos.router.ts';
+import { todosRoutes } from './todos/todos.routes.ts';
 
 export default createApp({
   routes: {
-    '/': todosRouter,
+    '/todos': todosRoutes,
   },
 });
 ```
 
-The app's type has every router's routes under its path, so a typed client
-(`hc<typeof app>`) sees them all. Each router starts from `createRouter`, which
-answers a request its route's schemas refuse with a 422.
+The app's type has every route under its path, so a typed client
+(`hc<typeof app>`) sees them all.
+
+### Routes
+
+A route is one object: its contract and its handler. It declares only what's its
+own, its success response and the errors its code throws:
+
+```ts
+const getTodo = defineRoute({
+  method: 'get',
+  path: '/{id}',
+  params: todosModel.paramsSchema,
+  response: todosModel.readSchema,
+  description: 'One todo',
+  errors: {
+    404: 'Cannot find todo',
+  },
+  handler: async (c) =>
+    c.json(await todosOps.get(c.var.db, c.req.valid('param').id), 200),
+});
+
+const todosRoutes = {
+  getTodo,
+  getAllTodos,
+  createTodo,
+};
+```
+
+It takes `method` and `path`, the request's `params`, `query`, `headers` and
+`body`, the success `status` (200 unless it says) with its `response` schema
+(none for a 204) and `description`, its `errors`, each status's description, and
+the `handler`. `body` is a schema, or `{ schema, description }`, and is always
+required JSON. The handler is typed from the rest: `c.req.valid()` by the
+request's schemas, `c.json()` by the declared statuses, and `c.var` by what's
+registered.
+
+Kiln declares the responses it causes itself, so a route can't:
+
+- **500**, on every route, which `onError` sends for anything unexpected.
+- **422**, on a route with any request schema, which the validation hook sends
+  with the issues.
+- **400** and **415**, on a route with a body: one that isn't valid JSON, or
+  isn't sent as JSON.
+
+Each route's key in its record is its `operationId`. A record's routes are
+registered in its key order, which matters only where paths overlap: put
+`getNewTodo` (`/new`) before `getTodo` (`/{id}`), or `/new` reaches `getTodo`.
+
+For anything a route can't say, a path takes a router instead: `createRouter()`,
+an `OpenAPIHono` whose routes are Hono's or zod-openapi's own, and which answers
+a request its schemas refuse with the same 422.
 
 `middleware` runs on every request, in order, before every route, so each one
 can use what the ones before it set. One that answers, such as a 401, stops the
@@ -70,7 +120,7 @@ every API, those without a database too. Its bindings are typed by
 `Cloudflare.Env`, which `wrangler types` writes. With an auth guard, say:
 
 ```ts
-import { createApp, createMiddleware, createRouter } from '@arsw/kiln';
+import { createApp, createMiddleware } from '@arsw/kiln';
 import { database } from '@arsw/kiln/model';
 
 const signedIn = createMiddleware(async (c, next) => {
@@ -80,12 +130,10 @@ const signedIn = createMiddleware(async (c, next) => {
   return next();
 });
 
-const todosRouter = createRouter();
-
 export default createApp({
   middleware: [database((env) => env.DB), signedIn],
   routes: {
-    '/': todosRouter,
+    '/todos': todosRoutes,
   },
 });
 ```
@@ -93,8 +141,8 @@ export default createApp({
 `createMiddleware` is Hono's, typed by what's registered. `AppEnv` is the env
 every router and handler sees, for a function that takes a context.
 
-An app with no `routes` can have middleware and routes chained onto it:
-`createApp().use(signedIn).route('/', todosRouter)`. What `createApp` and
+An app with no `routes` can have middleware and routers chained onto it:
+`createApp().use(signedIn).route('/', router)`. What `createApp` and
 `createRouter` return, a `Router`, keeps `openapi` after `.use()`, where
 `OpenAPIHono`'s own type would return a plain `Hono`.
 
@@ -125,14 +173,14 @@ Every error is JSON with a `message`:
 - **500** for anything else, `Internal Server Error`: the error itself is
   logged, never sent.
 
+A route on a router declares every response itself, with Kiln's pieces.
 `json(schema, description)` declares a JSON response, and
 `errors({ 404: 'Cannot find todo' })` a route's errors: each status's
 description, with an error body. Each status stays a key of its own, so a
-handler's `c.json(body, 404)` is typed against it, and a client sees the body. A
-422's body has its `issues`, so it's `json(invalidSchema, description)`.
-`errorSchema` and `invalidSchema` describe the errors' bodies, and `serverError`
-(the 500) and `malformedBody` (the 400 a body that isn't JSON gets) can be
-spread into any route's responses:
+handler's `c.json(body, 404)` is typed against it, and a client sees the body.
+`errorSchema` and `invalidSchema` describe the errors' bodies, and the responses
+`defineRoute` adds can be spread in: `serverError` (the 500), `invalidRequest`
+(the 422), `malformedBody` (the 400) and `unsupportedBody` (the 415):
 
 ```ts
 const getTodoRoute = createRoute({
@@ -146,7 +194,7 @@ const getTodoRoute = createRoute({
     ...errors({
       404: 'Cannot find todo',
     }),
-    422: json(invalidSchema, 'The id must be a uuid'),
+    ...invalidRequest,
     ...serverError,
   },
 });

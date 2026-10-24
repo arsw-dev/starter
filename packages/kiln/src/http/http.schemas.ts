@@ -1,6 +1,6 @@
 import { z } from '@hono/zod-openapi';
 
-import type { ErrorStatus } from './http.types.ts';
+import type { ErrorDescriptions } from './http.types.ts';
 
 // Where an input was, in OpenAPI's words, as the document names it
 const LOCATIONS = {
@@ -49,9 +49,7 @@ type ErrorDeclaration = ReturnType<typeof json<typeof errorSchema>>;
 // A route's errors, by status: what each one means, as an error body. Each
 // status stays a key of its own, so the handler's c.json(body, 404) is typed
 // against it
-const errors = <
-  const Descriptions extends Partial<Record<ErrorStatus, string>>,
->(
+const errors = <const Descriptions extends ErrorDescriptions>(
   descriptions: Descriptions,
 ) =>
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- fromEntries can't carry the keys: each is a status from descriptions, as an error body
@@ -63,6 +61,12 @@ const errors = <
   ) as {
     [Status in keyof Descriptions]: ErrorDeclaration;
   };
+
+// What a route with any request schema can answer: one its schemas refuse,
+// which the router's validation hook makes a 422 with the issues
+const invalidRequest = {
+  422: json(invalidSchema, 'The request does not match its schema'),
+};
 
 // What every route can answer besides its own responses: anything unexpected,
 // which onError makes a 500 that says nothing about it
@@ -76,13 +80,22 @@ const malformedBody = errors({
   400: 'The body is not valid JSON',
 });
 
+// Or one sent as something other than JSON, which zod-openapi answers with a
+// 415 before parsing it
+const unsupportedBody = errors({
+  415: 'The body is not sent as JSON',
+});
+
 export {
   LOCATIONS,
   errorSchema,
   errors,
+  invalidRequest,
   invalidSchema,
   issueSchema,
   json,
   malformedBody,
   serverError,
+  unsupportedBody,
 };
+export type { ErrorDeclaration };
