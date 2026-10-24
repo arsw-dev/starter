@@ -48,7 +48,7 @@ or config file, or a lint exemption.
 ## The API
 
 - **A domain is one folder** (`src/todos/`): its model, its operations and its
-  router.
+  routes.
 - **The model is the only definition** of a table and its schemas: `defineModel`
   (`@arsw/kiln/model`) builds the Drizzle table, its `CHECK` constraints and the
   Zod schemas for reading, creating and updating, from one list of fields. Never
@@ -60,8 +60,10 @@ or config file, or a lint exemption.
   `Conflict`, …), and the app's error handler answers with its status. Every
   error is `{ message }`, and a request that fails its schema is a 422 with
   `{ message, issues }`.
-- **Routes declare every response they can give,** so the OpenAPI document,
-  committed as `docs/openapi.json`, is the API's contract.
+- **A route declares what's its own** (`defineRoute`): its success response and
+  the errors its operations throw. Kiln adds the ones it causes (500, 422, 400,
+  415), so the OpenAPI document, committed as `docs/openapi.json`, is the API's
+  contract.
 
 ## The app
 

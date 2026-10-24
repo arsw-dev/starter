@@ -68,6 +68,7 @@
   "paths": {
     "/todos/{id}": {
       "get": {
+        "operationId": "getTodo",
         "parameters": [
           {
             "schema": {
@@ -155,7 +156,7 @@
             }
           },
           "422": {
-            "description": "The id must be a uuid",
+            "description": "The request does not match its schema",
             "content": {
               "application/json": {
                 "schema": {
@@ -177,6 +178,7 @@
         }
       },
       "patch": {
+        "operationId": "updateTodo",
         "parameters": [
           {
             "schema": {
@@ -318,8 +320,18 @@
               }
             }
           },
+          "415": {
+            "description": "The body is not sent as JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "422": {
-            "description": "The id or update body is invalid",
+            "description": "The request does not match its schema",
             "content": {
               "application/json": {
                 "schema": {
@@ -341,6 +353,7 @@
         }
       },
       "delete": {
+        "operationId": "deleteTodo",
         "parameters": [
           {
             "schema": {
@@ -367,7 +380,7 @@
             }
           },
           "422": {
-            "description": "The id must be a uuid",
+            "description": "The request does not match its schema",
             "content": {
               "application/json": {
                 "schema": {
@@ -391,6 +404,7 @@
     },
     "/todos": {
       "get": {
+        "operationId": "getAllTodos",
         "responses": {
           "200": {
             "description": "All todos",
@@ -472,6 +486,7 @@
         }
       },
       "post": {
+        "operationId": "createTodo",
         "requestBody": {
           "required": true,
           "description": "Todo to create",
@@ -591,8 +606,18 @@
               }
             }
           },
+          "415": {
+            "description": "The body is not sent as JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "422": {
-            "description": "The create body is invalid",
+            "description": "The request does not match its schema",
             "content": {
               "application/json": {
                 "schema": {
