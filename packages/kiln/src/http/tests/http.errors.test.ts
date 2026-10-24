@@ -1,5 +1,6 @@
+import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
-import { expect, it } from 'vite-plus/test';
+import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
 
 import {
   Conflict,
@@ -7,6 +8,7 @@ import {
   HttpError,
   NotFound,
   Unauthorized,
+  onError,
   toErrorResponse,
 } from '#/http/http.errors.ts';
 
@@ -67,5 +69,66 @@ it('makes anything else a 500 that says nothing about it', () => {
     body: {
       message: 'Internal Server Error',
     },
+  });
+});
+
+describe('the log of a 500', () => {
+  const app = new Hono()
+    .post('/todos/:id', () => {
+      throw new TypeError('the database password');
+    })
+    .get('/todos/:id', () => {
+      throw new NotFound('Todo not found');
+    })
+    .onError(onError);
+
+  // Everything a log must leave out: the body, who sent it, and the query
+  const send = async (method: 'GET' | 'POST') =>
+    app.request('/todos/1?email=ada@example.com', {
+      method,
+      headers: {
+        authorization: 'Bearer secret',
+        'cf-ray': '8f1e2d3c4b5a6978-LHR',
+        'content-type': 'application/json',
+        cookie: 'session=secret',
+      },
+      ...(method === 'POST'
+        ? {
+            body: JSON.stringify({
+              title: 'Call Ada',
+            }),
+          }
+        : {}),
+    });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('is one object: the error, the method, the path and the ray id', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    expect((await send('POST')).status).toBe(500);
+    expect(log.mock.calls).toEqual([
+      [
+        {
+          error: {
+            name: 'TypeError',
+            message: 'the database password',
+            stack: expect.stringContaining('TypeError: the database password'),
+          },
+          method: 'POST',
+          path: '/todos/1',
+          rayId: '8f1e2d3c4b5a6978-LHR',
+        },
+      ],
+    ]);
+  });
+
+  it('is written for a 500 only', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    expect((await send('GET')).status).toBe(404);
+    expect(log).not.toHaveBeenCalled();
   });
 });

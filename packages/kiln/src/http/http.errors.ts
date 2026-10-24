@@ -1,7 +1,7 @@
 import { HTTPException } from 'hono/http-exception';
 
 import type { ErrorBody, ErrorStatus } from './http.types.ts';
-import type { ErrorHandler, NotFoundHandler } from 'hono';
+import type { Context, ErrorHandler, NotFoundHandler } from 'hono';
 
 type ErrorResponse = {
   status: HTTPException['status'];
@@ -63,10 +63,25 @@ const notFound: NotFoundHandler = (ctx) =>
     404,
   );
 
+// A 500 as one object, so Workers Logs can filter on each field: the error,
+// spelled out since an Error inside an object logs as {}, and where it
+// happened. The path without its query, and nothing of the body or who sent
+// it: a log must not carry personal data
+const toErrorLog = (err: Error, ctx: Context) => ({
+  error: {
+    name: err.name,
+    message: err.message,
+    stack: err.stack,
+  },
+  method: ctx.req.method,
+  path: ctx.req.path,
+  rayId: ctx.req.header('cf-ray'),
+});
+
 const onError: ErrorHandler = (err, ctx) => {
   const { status, body } = toErrorResponse(err);
 
-  if (status === 500) console.error(err);
+  if (status === 500) console.error(toErrorLog(err, ctx));
 
   return ctx.json(body, status);
 };

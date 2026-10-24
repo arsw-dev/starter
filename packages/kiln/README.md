@@ -192,7 +192,10 @@ Every error is JSON with a `message`:
   `message`. An unknown key is an issue of its own, at its own path.
 - **An `HTTPException`**, Hono's, with its own status and message.
 - **500** for anything else, `Internal Server Error`: the error itself is
-  logged, never sent.
+  logged, never sent. The log is one object, so Workers Logs can filter on each
+  field: `error` (its `name`, `message` and `stack`), `method`, `path` (without
+  the query) and `rayId` (the `cf-ray` header). Nothing of the body or of who
+  sent the request: a log must not carry personal data.
 
 A route on a router declares every response itself, with Kiln's pieces.
 `json(schema, description)` declares a JSON response, and
