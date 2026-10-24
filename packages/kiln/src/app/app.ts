@@ -3,7 +3,9 @@ import { OpenAPIHono } from '@hono/zod-openapi';
 import { notFound, onError } from '#/http/http.errors.ts';
 import { toRouter } from '#/http/http.route.ts';
 import { createRouter } from '#/http/http.router.ts';
+import { errors } from '#/http/http.schemas.ts';
 
+import type { Middleware } from '#/http/http.middleware.ts';
 import type { AnyRoute } from '#/http/http.route.ts';
 import type { Router } from '#/http/http.router.ts';
 import type { AppEnv } from '#/http/http.types.ts';
@@ -16,7 +18,7 @@ import type { UnionToIntersection } from 'hono/utils/types';
 type Mounted = Record<string, AnyRoute> | OpenAPIHono<AppEnv, Schema, string>;
 
 type Options<Routes extends Record<string, Mounted>> = {
-  middleware?: MiddlewareHandler<AppEnv>[];
+  middleware?: (MiddlewareHandler<AppEnv> | Middleware)[];
   routes?: Routes;
 };
 
@@ -63,13 +65,38 @@ const createApp = <const Routes extends Record<string, Mounted> = {}>({
   const app = createRouter();
 
   // Hono takes a missing handler as a handler, so none means no call
-  for (const handler of middleware) app.use(handler);
+  for (const entry of middleware) {
+    app.use(typeof entry === 'function' ? entry : entry.handler);
+  }
 
   for (const [path, mounted] of Object.entries(routes ?? {})) {
     app.route(
       path,
       mounted instanceof OpenAPIHono ? mounted : toRouter(mounted),
     );
+  }
+
+  // Every route the app registers runs after the middleware, so it can answer
+  // with the middleware's errors: each route's definition gets them, beside
+  // its own, which win. The definition is the app's own copy, but its
+  // responses are shared with the route itself, so they're replaced, never
+  // changed
+  const middlewareErrors = errors(
+    Object.assign(
+      {},
+      ...middleware.map((entry) =>
+        typeof entry === 'function' ? {} : entry.errors,
+      ),
+    ),
+  );
+
+  for (const definition of app.openAPIRegistry.definitions) {
+    if (definition.type === 'route') {
+      definition.route.responses = {
+        ...middlewareErrors,
+        ...definition.route.responses,
+      };
+    }
   }
 
   app.notFound(notFound);

@@ -120,15 +120,23 @@ every API, those without a database too. Its bindings are typed by
 `Cloudflare.Env`, which `wrangler types` writes. With an auth guard, say:
 
 ```ts
-import { createApp, createMiddleware } from '@arsw/kiln';
+import { createApp, defineMiddleware } from '@arsw/kiln';
 import { database } from '@arsw/kiln/model';
 
-const signedIn = createMiddleware(async (c, next) => {
-  // Answers a 401, or sets the user
-  c.set('user', user);
+const signedIn = defineMiddleware(
+  async (c, next) => {
+    // Answers a 401 or a 403, or sets the user
+    c.set('user', user);
 
-  return next();
-});
+    return next();
+  },
+  {
+    errors: {
+      401: 'No token was sent',
+      403: 'The token was refused',
+    },
+  },
+);
 
 export default createApp({
   middleware: [database((env) => env.DB), signedIn],
@@ -138,12 +146,25 @@ export default createApp({
 });
 ```
 
-`createMiddleware` is Hono's, typed by what's registered. `AppEnv` is the env
-every router and handler sees, for a function that takes a context.
+### Middleware
+
+A middleware that answers a request itself declares what it answers with, as a
+route declares its errors: `defineMiddleware(handler, { errors })`. `createApp`
+runs its handler like any other, and adds its errors to every route in `routes`,
+records and routers alike, since each runs after it. A route that declares one
+of the same statuses keeps its own description. The 500 is `onError`'s, so a
+middleware can't declare it. The errors are for the document only: a front end
+gets a non-OK response as an error carrying its status. A middleware that only
+sets something, such as `database`, is a plain handler, and adds none.
+
+`createMiddleware` is Hono's, typed by what's registered, for a handler written
+on its own. `AppEnv` is the env every router and handler sees, for a function
+that takes a context.
 
 An app with no `routes` can have middleware and routers chained onto it:
-`createApp().use(signedIn).route('/', router)`. What `createApp` and
-`createRouter` return, a `Router`, keeps `openapi` after `.use()`, where
+`createApp().use(handler).route('/', router)`. A middleware's errors reach only
+the routes given in `routes`, not ones chained on afterwards. What `createApp`
+and `createRouter` return, a `Router`, keeps `openapi` after `.use()`, where
 `OpenAPIHono`'s own type would return a plain `Hono`.
 
 ## Errors
