@@ -1,4 +1,5 @@
 import { createServerOnlyFn } from '@tanstack/react-start';
+import { getRequestHeaders } from '@tanstack/react-start/server';
 import { hc } from 'hono/client';
 
 import { toApiError, unwrap } from './unwrap.ts';
@@ -51,6 +52,36 @@ type HandlerInput<TData> = {
 type Options = {
   // The API's name, in its errors and logs: any text
   name: string;
+  // Headers of the request the server function is handling, by name, sent on
+  // every call. Only the ones named: the rest, cookies among them, stay with
+  // the app
+  forward?: string[];
+};
+
+// A call's own header wins over a forwarded one of the same name: it's the
+// more specific of the two. A named header the incoming request doesn't have
+// isn't sent, so the API sees none rather than an empty one. With nothing to
+// forward, the incoming request isn't read at all
+const withForwarded = (forward: string[], init?: RequestInit) => {
+  if (forward.length === 0) {
+    return init;
+  }
+
+  const incoming = getRequestHeaders();
+  const headers = new Headers(init?.headers);
+
+  for (const name of forward) {
+    const value = incoming.get(name);
+
+    if (value !== null && !headers.has(name)) {
+      headers.set(name, value);
+    }
+  }
+
+  return {
+    ...init,
+    headers,
+  };
 };
 
 // A front end's way to reach one API over its service binding. What it returns,
@@ -58,7 +89,7 @@ type Options = {
 // typed, or an ApiError
 const connect = <TApp extends AnyApp>(
   binding: () => ServiceBinding,
-  { name }: Options,
+  { name, forward = [] }: Options,
 ) => {
   // A service binding ignores the host: hc only needs a URL to build paths on.
   // .internal never resolves publicly, so a request that leaked past the
@@ -68,7 +99,7 @@ const connect = <TApp extends AnyApp>(
   const client = createServerOnlyFn(() =>
     hc<TApp>(origin, {
       fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
-        const request = new Request(input, init);
+        const request = new Request(input, withForwarded(forward, init));
         const response = await binding().fetch(request);
 
         // Never expected: logged here too, since a binding with no API behind
