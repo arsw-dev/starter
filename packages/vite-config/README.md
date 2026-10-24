@@ -25,6 +25,15 @@ export default defineConfig({
 `vp check` then formats, lints with type-aware rules and type-checks. The
 guardrails plugin comes with this package: a repo doesn't install it.
 
+A type augmentation, which only an interface can make, lives in a declaration
+file of its own, and two rules make room for it:
+
+- **In a `*.d.ts`**, `typescript/consistent-type-definitions` is off: a
+  declaration file's interfaces are there to merge, which a `type` alias can't.
+- **In a `main.ts`**, `typescript/triple-slash-reference` allows a reference by
+  path (`/// <reference path="./types.d.ts" />`), so any program that includes
+  the entry, such as a front end's typed client, has the declarations too.
+
 ## Library builds
 
 `pack(entries)` gives `vp pack` the settings a package published to npm needs:

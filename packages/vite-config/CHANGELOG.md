@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.2
+
+A type augmentation can live in a declaration file of its own:
+
+- **A `.d.ts` may declare an interface:**
+  `typescript/consistent-type-definitions` is off there. A declaration file's
+  interfaces are there to merge, which a `type` alias can't, and the rule's fix
+  turned an augmentation into an alias that silently stopped applying.
+- **`main.ts` may reference a file by path:**
+  `typescript/triple-slash-reference` allows `/// <reference path="…" />` in an
+  entry, so any program that includes the entry, a front end's typed client
+  among them, has its declaration files too. `types` and `lib` references keep
+  the rule's defaults.
+
 ## 0.1.1
 
 No `typescript` peer: its range, `>=7.0.0-0`, turned away TypeScript 7.1's
