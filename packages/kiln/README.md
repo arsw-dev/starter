@@ -1,33 +1,32 @@
-# @arsw/hono-drizzle
+# @arsw/kiln
 
-A [Hono](https://hono.dev) API on Cloudflare Workers and
-[D1](https://developers.cloudflare.com/d1/): OpenAPI routes that answer every
-error in one shape, and models that give a [Drizzle](https://orm.drizzle.team)
-table and its [Zod](https://zod.dev) schemas from one list of fields, so the
-database and the API refuse the same values.
+An API framework on [Hono](https://hono.dev), for Cloudflare Workers: OpenAPI
+routes that answer every error in one shape, wired into one app. Under
+`@arsw/kiln/model`, models that give a [Drizzle](https://orm.drizzle.team) table
+on [D1](https://developers.cloudflare.com/d1/) and its [Zod](https://zod.dev)
+schemas from one list of fields, so the database and the API refuse the same
+values.
 
 ```sh
-pnpm add @arsw/hono-drizzle
+pnpm add @arsw/kiln
 ```
 
-Its peers: `hono`, `@hono/zod-openapi`, `drizzle-orm` and `zod`.
+Its peers: `hono`, `@hono/zod-openapi` and `zod`, and `drizzle-orm` for
+`@arsw/kiln/model` only. An API with no database installs and imports none of
+Drizzle.
 
 ## The app
 
-`createApp` gives an API's whole app: a Drizzle database on every request
-(`c.var.db`), its middleware, its routes, and the not-found and error handlers.
-`db` says which of the Worker's bindings is its D1 database. The bindings are
-typed by `Cloudflare.Env`, which `wrangler types` writes. `routes` maps each
-path to a router:
+`createApp` gives an API's whole app: its middleware, its routes, and the
+not-found and error handlers. `routes` maps each path to a router:
 
 ```ts
 // src/main.ts
-import { createApp } from '@arsw/hono-drizzle';
+import { createApp } from '@arsw/kiln';
 
 import { todosRouter } from './todos/todos.router.ts';
 
 export default createApp({
-  db: (env) => env.DB,
   routes: {
     '/': todosRouter,
   },
@@ -38,59 +37,91 @@ The app's type has every router's routes under its path, so a typed client
 (`hc<typeof app>`) sees them all. Each router starts from `createRouter`, which
 answers a request its route's schemas refuse with a 422.
 
-`db` is optional: an API with no D1 database leaves it out. A request's
-variables are `{ db: DB }` unless an API declares its own, all of them, to
-`createRouter` and `AppEnv`; one with no database leaves `db` out, and
-`c.var.db` is then a type error rather than `undefined`. An auth guard, say:
+`middleware` runs on every request, in order, before every route, so each one
+can use what the ones before it set. One that answers, such as a 401, stops the
+request there.
+
+### Variables
+
+The variables a request carries are declared once, by adding them to Kiln's
+`Register`:
 
 ```ts
-type Variables = {
-  db: DB;
-  user: User;
-};
+declare module '@arsw/kiln' {
+  interface Register {
+    variables: {
+      db: DB;
+      user: User;
+    };
+  }
+}
+```
 
-const signedIn = createMiddleware<AppEnv<Variables>>(async (c, next) => {
+Every router, route and middleware reads them from there, so none takes a type
+argument: `c.var.user` is a `User`, and `c.var.role`, never registered, is a
+type error. With nothing registered, a request carries none. Declare it in the
+file with the app (`src/main.ts`): anything that type-checks the app's type,
+such as a front end's typed client, then has it too.
+
+A D1 database is a middleware like any other, `database` from
+`@arsw/kiln/model`, first so the rest can use `c.var.db`. It sets `db`, which an
+API that uses it registers itself: Kiln doesn't, since a registration applies to
+every API, those without a database too. Its bindings are typed by
+`Cloudflare.Env`, which `wrangler types` writes. With an auth guard, say:
+
+```ts
+import { createApp, createMiddleware, createRouter } from '@arsw/kiln';
+import { database } from '@arsw/kiln/model';
+
+const signedIn = createMiddleware(async (c, next) => {
   // Answers a 401, or sets the user
   c.set('user', user);
 
   return next();
 });
 
-const todosRouter = createRouter<Variables>();
+const todosRouter = createRouter();
 
 export default createApp({
-  db: (env) => env.DB,
-  middleware: [signedIn],
+  middleware: [database((env) => env.DB), signedIn],
   routes: {
     '/': todosRouter,
   },
 });
 ```
 
-`createApp` takes no type arguments: it infers `Variables` from the routers and
-the middleware, so a middleware written inline is typed by the routers it runs
-before. `middleware` runs on every request, in order, after the database and
-before every route, so each one can use the database and what the ones before it
-set. One that answers, such as a 401, stops the request there.
+`createMiddleware` is Hono's, typed by what's registered. `AppEnv` is the env
+every router and handler sees, for a function that takes a context.
 
-An app with no `routes` can still be given its variables,
-`createApp<Variables>()`, and have middleware and routes chained onto it:
-`createApp<Variables>().use(signedIn).route('/', todosRouter)`. What `createApp`
-and `createRouter` return keeps `openapi` after `.use()`, where `OpenAPIHono`'s
-own type would return a plain `Hono`. With `routes`, give no type arguments:
-TypeScript can't infer the routes beside one that's given, so
-`createApp<Variables>({ routes })` is a type error rather than routes the client
-can't see.
+An app with no `routes` can have middleware and routes chained onto it:
+`createApp().use(signedIn).route('/', todosRouter)`. What `createApp` and
+`createRouter` return, a `Router`, keeps `openapi` after `.use()`, where
+`OpenAPIHono`'s own type would return a plain `Hono`.
 
 ## Errors
 
 Every error is JSON with a `message`:
 
-- **404**, for a path no route has, or when a handler throws `NotFound`.
+- **404**, `Not Found`, for a path no route has.
+- **An `HttpError`**, thrown by a handler or an operation, with its own status
+  and message: `Unauthorized` (401), `Forbidden` (403), `NotFound` (404) and
+  `Conflict` (409), or a class of an API's own, which names its status once:
+
+  ```ts
+  class Gone extends HttpError {
+    override name = 'Gone';
+    readonly status = 410;
+  }
+
+  throw new Gone('Todo was archived');
+  ```
+
+  Its status is any client or server error but 422, whose body has its issues.
+
 - **422**, `Invalid Request`, with `issues`: each one's `in` (`body`, `path`,
   `query`, … in OpenAPI's words), its `path` (`dueDate`, `tags.0`) and
   `message`. An unknown key is an issue of its own, at its own path.
-- **An `HTTPException`**, with its own status and message.
+- **An `HTTPException`**, Hono's, with its own status and message.
 - **500** for anything else, `Internal Server Error`: the error itself is
   logged, never sent.
 
@@ -123,9 +154,9 @@ const getTodoRoute = createRoute({
 
 ## Models
 
-`createDefineModel` sets how an API's tables are stored (`casing`, `snake_case`
-unless set to `camelCase`), once. `defineModel` takes a table's name and its
-fields:
+From `@arsw/kiln/model`. `createDefineModel` sets how an API's tables are stored
+(`casing`, `snake_case` unless set to `camelCase`), once. `defineModel` takes a
+table's name and its fields:
 
 ```ts
 // src/db/db.ts

@@ -7,7 +7,7 @@ import {
   json,
   malformedBody,
   serverError,
-} from '@arsw/hono-drizzle';
+} from '@arsw/kiln';
 
 import { todosModel } from './todos.model.ts';
 import { todosOps } from './todos.operations.ts';

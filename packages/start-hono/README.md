@@ -54,6 +54,32 @@ const todosApi = defineApi('todos', (api) => ({
 Each server function is a top-level `const`: Start's compiler doesn't find one
 inside an object or a factory.
 
+### Forwarding headers
+
+Each call is a new request over the binding, so nothing from the browser's
+request reaches the API. When the API needs a header the app was sent, such as
+the signed token an auth proxy like Cloudflare Access adds, `forward` names it,
+and every call sends it on:
+
+```ts
+const call = connect<AppType>(() => env.MY_API, {
+  name: 'my-api',
+  forward: ['cf-access-jwt-assertion'],
+});
+```
+
+- **Only the named headers go.** The rest of the incoming request, its cookies
+  among them, stays with the app.
+- **One the incoming request doesn't have isn't sent,** so the API sees no
+  header rather than an empty one.
+- **A call's own header wins** over a forwarded one of the same name
+  (`client.me.$get(undefined, { headers })`): it's the more specific of the two,
+  set for that one call.
+- Names match whatever their case, as headers do.
+
+`connect` knows nothing of tokens: checking one is the API's job. The starter's
+`todos-app` has no auth, so it forwards nothing.
+
 ## `defineApi`
 
 Builds query and mutation options from server functions, keyed by where they

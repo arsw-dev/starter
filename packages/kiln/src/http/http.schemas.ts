@@ -1,9 +1,6 @@
 import { z } from '@hono/zod-openapi';
 
-import type {
-  ClientErrorStatusCode,
-  ServerErrorStatusCode,
-} from 'hono/utils/http-status';
+import type { ErrorStatus } from './http.types.ts';
 
 // Where an input was, in OpenAPI's words, as the document names it
 const LOCATIONS = {
@@ -46,10 +43,6 @@ const json = <TSchema extends z.ZodType>(
   },
   description,
 });
-
-// The statuses an error body answers; a 422 has its issues too, so a route
-// declares it with json(invalidSchema, …)
-type ErrorStatus = Exclude<ClientErrorStatusCode | ServerErrorStatusCode, 422>;
 
 type ErrorDeclaration = ReturnType<typeof json<typeof errorSchema>>;
 

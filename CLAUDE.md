@@ -50,15 +50,16 @@ or config file, or a lint exemption.
 - **A domain is one folder** (`src/todos/`): its model, its operations and its
   router.
 - **The model is the only definition** of a table and its schemas: `defineModel`
-  (`@arsw/hono-drizzle`) builds the Drizzle table, its `CHECK` constraints and
-  the Zod schemas for reading, creating and updating, from one list of fields.
-  Never write a table or a schema beside it. After changing a model, run
+  (`@arsw/kiln/model`) builds the Drizzle table, its `CHECK` constraints and the
+  Zod schemas for reading, creating and updating, from one list of fields. Never
+  write a table or a schema beside it. After changing a model, run
   `pnpm db:generate` and commit the migration.
 - **Operations name the columns they read and return** (`readColumns`), so a new
   internal column never reaches a response.
-- **Errors are types:** an operation throws `NotFound`, and the app's error
-  handler answers. Every error is `{ message }`, and a request that fails its
-  schema is a 422 with `{ message, issues }`.
+- **Errors are types:** an operation throws an `HttpError` (`NotFound`,
+  `Conflict`, …), and the app's error handler answers with its status. Every
+  error is `{ message }`, and a request that fails its schema is a 422 with
+  `{ message, issues }`.
 - **Routes declare every response they can give,** so the OpenAPI document,
   committed as `docs/openapi.json`, is the API's contract.
 
