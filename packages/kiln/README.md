@@ -224,6 +224,28 @@ const getTodoRoute = createRoute({
 });
 ```
 
+## The document
+
+From `@arsw/kiln/document`, in Node only, since it writes with `node:fs`, which
+the core never imports: it runs in Workers. `writeDocument` writes an app's
+OpenAPI 3.1 document to a file, indented and ending in a newline, to commit
+beside the API:
+
+```ts
+// scripts/openapi.ts
+import { writeDocument } from '@arsw/kiln/document';
+
+import app from '#/main.ts';
+
+await writeDocument(app, {
+  title: 'Todos API',
+  version: '1.0.0',
+  file: new URL('../docs/openapi.json', import.meta.url),
+});
+```
+
+`file` is a path or a URL.
+
 ## Models
 
 From `@arsw/kiln/model`. `createDefineModel` sets how an API's tables are stored

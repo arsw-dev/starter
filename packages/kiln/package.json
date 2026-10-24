@@ -18,7 +18,8 @@
   },
   "exports": {
     ".": "./src/main.ts",
-    "./model": "./src/model.ts"
+    "./model": "./src/model.ts",
+    "./document": "./src/document.ts"
   },
   "publishConfig": {
     "exports": {
@@ -29,6 +30,10 @@
       "./model": {
         "types": "./dist/model.d.mts",
         "default": "./dist/model.mjs"
+      },
+      "./document": {
+        "types": "./dist/document.d.mts",
+        "default": "./dist/document.mjs"
       }
     },
     "access": "public"
