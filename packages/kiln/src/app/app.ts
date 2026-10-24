@@ -8,59 +8,42 @@ import type { MiddlewareHandler, Schema } from 'hono';
 import type { MergePath, MergeSchemaPath } from 'hono/types';
 import type { UnionToIntersection } from 'hono/utils/types';
 
-// Each path's router gives its own schema, so a typed client sees its routes.
-// The record of every router is where Variables comes from: TypeScript infers
-// only Schemas from the mapped type
-type Routes<
-  Variables extends object,
-  Schemas extends Record<string, Schema>,
-> = {
-  [Path in keyof Schemas]: OpenAPIHono<
-    AppEnv<Variables>,
-    Schemas[Path],
-    string
-  >;
-} & Record<string, OpenAPIHono<AppEnv<Variables>, Schema, string>>;
+// Each path's router gives its own schema, so a typed client sees its routes
+type Routes<Schemas extends Record<string, Schema>> = {
+  [Path in keyof Schemas]: OpenAPIHono<AppEnv, Schemas[Path], string>;
+};
 
-type Options<
-  Variables extends object,
-  Schemas extends Record<string, Schema>,
-> = {
-  middleware?: MiddlewareHandler<AppEnv<Variables>>[];
-  routes?: Routes<Variables, Schemas>;
+type Options<Schemas extends Record<string, Schema>> = {
+  middleware?: MiddlewareHandler<AppEnv>[];
+  routes?: Routes<Schemas>;
 };
 
 // Every router's schema under its path, as app.route() would merge them. The
 // result is narrowed back to a Schema with infer: an intersection with Schema
-// compiles, but makes every route unknown to the client. No routes given
-// (never) and an empty record ({}) both have none
-type RoutesSchema<Schemas extends Record<string, Schema>> = [Schemas] extends [
-  never,
-]
+// compiles, but makes every route unknown to the client. No routes given and an
+// empty record both have none
+type RoutesSchema<Schemas extends Record<string, Schema>> = [
+  keyof Schemas,
+] extends [never]
   ? {}
-  : [keyof Schemas] extends [never]
-    ? {}
-    : UnionToIntersection<
-          {
-            [Path in keyof Schemas & string]: MergeSchemaPath<
-              Schemas[Path],
-              MergePath<'/', Path>
-            >;
-          }[keyof Schemas & string]
-        > extends infer S extends Schema
-      ? S
-      : never;
+  : UnionToIntersection<
+        {
+          [Path in keyof Schemas & string]: MergeSchemaPath<
+            Schemas[Path],
+            MergePath<'/', Path>
+          >;
+        }[keyof Schemas & string]
+      > extends infer S extends Schema
+    ? S
+    : never;
 
 // An API's app: its middleware, in order, then its routes, so no route comes
-// before a middleware. Variables is inferred from the routers and the
-// middleware. Given explicitly, it can't be with routes, which TypeScript would
-// then not infer: Schemas defaults to never, which makes routes an error rather
-// than routes lost
-const createApp = <
-  Variables extends object = {},
-  const Schemas extends Record<string, Schema> = never,
->({ middleware = [], routes }: Options<Variables, Schemas> = {}) => {
-  const app = createRouter<Variables>();
+// before a middleware. Its variables are the ones the API registers
+const createApp = <const Schemas extends Record<string, Schema> = {}>({
+  middleware = [],
+  routes,
+}: Options<Schemas> = {}) => {
+  const app = createRouter();
 
   // Hono takes a missing handler as a handler, so none means no call
   for (const handler of middleware) app.use(handler);
@@ -74,7 +57,7 @@ const createApp = <
 
   // app.route() returns each router's routes in its type, which a loop can't
   // carry: the routes are on the app, and RoutesSchema says which
-  return app as Router<AppEnv<Variables>, RoutesSchema<Schemas>>;
+  return app as Router<AppEnv, RoutesSchema<Schemas>>;
 };
 
 export { createApp };

@@ -39,32 +39,48 @@ answers a request its route's schemas refuse with a 422.
 
 `middleware` runs on every request, in order, before every route, so each one
 can use what the ones before it set. One that answers, such as a 401, stops the
-request there. The variables a request carries are none unless an API declares
-them, once, to `createRouter` and `AppEnv`. A D1 database is a middleware like
-any other, `database` from `@arsw/kiln/model`, first so the rest can use
-`c.var.db`. Its bindings are typed by `Cloudflare.Env`, which `wrangler types`
-writes. With an auth guard, say:
+request there.
+
+### Variables
+
+The variables a request carries are declared once, by adding them to Kiln's
+`Register`:
 
 ```ts
-import { createApp, createRouter } from '@arsw/kiln';
+declare module '@arsw/kiln' {
+  interface Register {
+    variables: {
+      db: DB;
+      user: User;
+    };
+  }
+}
+```
+
+Every router, route and middleware reads them from there, so none takes a type
+argument: `c.var.user` is a `User`, and `c.var.role`, never registered, is a
+type error. With nothing registered, a request carries none. Declare it in the
+file with the app (`src/main.ts`): anything that type-checks the app's type,
+such as a front end's typed client, then has it too.
+
+A D1 database is a middleware like any other, `database` from
+`@arsw/kiln/model`, first so the rest can use `c.var.db`. It sets `db`, which an
+API that uses it registers itself: Kiln doesn't, since a registration applies to
+every API, those without a database too. Its bindings are typed by
+`Cloudflare.Env`, which `wrangler types` writes. With an auth guard, say:
+
+```ts
+import { createApp, createMiddleware, createRouter } from '@arsw/kiln';
 import { database } from '@arsw/kiln/model';
 
-import type { AppEnv } from '@arsw/kiln';
-import type { DB } from '@arsw/kiln/model';
-
-type Variables = {
-  db: DB;
-  user: User;
-};
-
-const signedIn = createMiddleware<AppEnv<Variables>>(async (c, next) => {
+const signedIn = createMiddleware(async (c, next) => {
   // Answers a 401, or sets the user
   c.set('user', user);
 
   return next();
 });
 
-const todosRouter = createRouter<Variables>();
+const todosRouter = createRouter();
 
 export default createApp({
   middleware: [database((env) => env.DB), signedIn],
@@ -74,18 +90,13 @@ export default createApp({
 });
 ```
 
-`createApp` takes no type arguments: it infers `Variables` from the routers and
-the middleware, so a middleware written inline is typed by the routers it runs
-before, and `database` takes the API's variables from where it's used.
+`createMiddleware` is Hono's, typed by what's registered. `AppEnv` is the env
+every router and handler sees, for a function that takes a context.
 
-An app with no `routes` can still be given its variables,
-`createApp<Variables>()`, and have middleware and routes chained onto it:
-`createApp<Variables>().use(signedIn).route('/', todosRouter)`. What `createApp`
-and `createRouter` return, a `Router`, keeps `openapi` after `.use()`, where
-`OpenAPIHono`'s own type would return a plain `Hono`. With `routes`, give no
-type arguments: TypeScript can't infer the routes beside one that's given, so
-`createApp<Variables>({ routes })` is a type error rather than routes the client
-can't see.
+An app with no `routes` can have middleware and routes chained onto it:
+`createApp().use(signedIn).route('/', todosRouter)`. What `createApp` and
+`createRouter` return, a `Router`, keeps `openapi` after `.use()`, where
+`OpenAPIHono`'s own type would return a plain `Hono`.
 
 ## Errors
 

@@ -51,8 +51,8 @@ class Router<
   declare use: Use<E, S, BasePath> & OpenAPIHono<E, S, BasePath>['use'];
 }
 
-const createRouter = <Variables extends object = {}>() =>
-  new Router<AppEnv<Variables>>({
+const createRouter = () =>
+  new Router<AppEnv>({
     strict: false,
     defaultHook: (result, ctx) => {
       if (result.success) return undefined;

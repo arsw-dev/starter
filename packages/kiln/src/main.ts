@@ -9,6 +9,7 @@ export {
   onError,
   toErrorResponse,
 } from './http/http.errors.ts';
+export { createMiddleware } from './http/http.middleware.ts';
 export { Router, createRouter } from './http/http.router.ts';
 export {
   LOCATIONS,
@@ -26,4 +27,6 @@ export type {
   ErrorStatus,
   InvalidRequest,
   Issue,
+  Register,
+  Variables,
 } from './http/http.types.ts';
