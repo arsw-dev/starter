@@ -1,11 +1,11 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { env } from 'cloudflare:workers';
 import { hc } from 'hono/client';
-import { createMiddleware } from 'hono/factory';
 import { expect, expectTypeOf, it } from 'vite-plus/test';
 
 import { createApp } from '#/app/app.ts';
 import { NotFound } from '#/http/http.errors.ts';
+import { createMiddleware } from '#/http/http.middleware.ts';
 import { createRouter } from '#/http/http.router.ts';
 import { json } from '#/http/http.schemas.ts';
 
@@ -33,12 +33,9 @@ const app = createApp().openapi(
   },
 );
 
-// An API whose requests carry a variable of its own, set by its middleware
-type Variables = {
-  greeting: string;
-};
-
-const greetingRouter = createRouter<Variables>().openapi(
+// An API whose requests carry a variable of its own, set by its middleware.
+// The variables are the ones http.types.test.ts registers for every test
+const greetingRouter = createRouter().openapi(
   createRoute({
     method: 'get',
     path: '/greeting',
@@ -60,7 +57,7 @@ const greetingRouter = createRouter<Variables>().openapi(
     ),
 );
 
-const greet = createMiddleware<AppEnv<Variables>>(async (c, next) => {
+const greet = createMiddleware(async (c, next) => {
   const greeting = c.req.header('greeting');
 
   if (!greeting) {
@@ -77,7 +74,7 @@ const greet = createMiddleware<AppEnv<Variables>>(async (c, next) => {
   return next();
 });
 
-const greetingApp = createApp<Variables>({
+const greetingApp = createApp({
   middleware: [greet],
 }).route('/', greetingRouter);
 
@@ -155,26 +152,19 @@ it('runs its middleware before the routes added after it', async () => {
 
 it('keeps the OpenAPI methods on its type, with middleware given or chained', () => {
   expectTypeOf(
-    createApp<Variables>({
+    createApp({
       middleware: [greet],
     }),
-  ).toExtend<OpenAPIHono<AppEnv<Variables>>>();
-  expectTypeOf(createApp<Variables>().use(greet)).toExtend<
-    OpenAPIHono<AppEnv<Variables>>
-  >();
-  expectTypeOf(createApp<Variables>().use('/greeting', greet)).toExtend<
-    OpenAPIHono<AppEnv<Variables>>
+  ).toExtend<OpenAPIHono<AppEnv>>();
+  expectTypeOf(createApp().use(greet)).toExtend<OpenAPIHono<AppEnv>>();
+  expectTypeOf(createApp().use('/greeting', greet)).toExtend<
+    OpenAPIHono<AppEnv>
   >();
 });
 
 // An API wired by createApp alone, with no type arguments: a middleware that
-// says who's asking, typed by the routers it runs before, and routers at two
-// paths, one of them the root
-type Asking = {
-  user: string;
-};
-
-const itemsRouter = createRouter<Asking>().openapi(
+// says who's asking, and routers at two paths, one of them the root
+const itemsRouter = createRouter().openapi(
   createRoute({
     method: 'get',
     path: '/{id}',
@@ -203,7 +193,7 @@ const itemsRouter = createRouter<Asking>().openapi(
     ),
 );
 
-const whoamiRouter = createRouter<Asking>().openapi(
+const whoamiRouter = createRouter().openapi(
   createRoute({
     method: 'get',
     path: '/whoami',
@@ -281,13 +271,4 @@ it('gives a typed client every route it registers, and no other', () => {
 
   // @ts-expect-error: no router is at /other
   void client.other;
-});
-
-it('refuses routes when Variables is given, which would lose their types', () => {
-  createApp<Asking>({
-    // @ts-expect-error: TypeScript can't infer the routes beside a Variables given
-    routes: {
-      '/': whoamiRouter,
-    },
-  });
 });

@@ -1,33 +1,25 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { env } from 'cloudflare:workers';
 import { sql } from 'drizzle-orm';
-import { createMiddleware } from 'hono/factory';
 import { expect, it } from 'vite-plus/test';
 
 import { createApp } from '#/app/app.ts';
+import { createMiddleware } from '#/http/http.middleware.ts';
 import { createRouter } from '#/http/http.router.ts';
 import { json } from '#/http/http.schemas.ts';
 import { database } from '#/model/model.database.ts';
 
-import type { AppEnv } from '#/http/http.types.ts';
-import type { DB } from '#/model/model.database.ts';
-
 // An API with the database and a middleware that sets a variable of its own,
-// both read by one route. Its Variables is written once, for the router and
-// the guard: database() takes it from createApp, and would break the app's
-// type if it said only { db }
-type Variables = {
-  db: DB;
-  user: string;
-};
-
-const signedIn = createMiddleware<AppEnv<Variables>>(async (c, next) => {
+// both read by one route, as http.types.test.ts registers them. database()
+// takes the variables from createApp, and would break the app's type if it
+// said only { db }
+const signedIn = createMiddleware(async (c, next) => {
   c.set('user', c.req.header('user') ?? 'Nobody');
 
   return next();
 });
 
-const answerRouter = createRouter<Variables>().openapi(
+const answerRouter = createRouter().openapi(
   createRoute({
     method: 'get',
     path: '/answer',
