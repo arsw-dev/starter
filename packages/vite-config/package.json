@@ -1,6 +1,6 @@
 {
   "name": "@arsw/vite-config",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Vite+ settings shared across repos: formatting, lint with the guardrails rules, and library builds",
   "license": "MIT",
   "repository": {

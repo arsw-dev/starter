@@ -34,6 +34,16 @@ file of its own, and two rules make room for it:
   path (`/// <reference path="./types.d.ts" />`), so any program that includes
   the entry, such as a front end's typed client, has the declarations too.
 
+Two more allowances follow conventions a tool sets:
+
+- **A stylesheet may be imported for its side effects**
+  (`import './styles.css'`): `import/no-unassigned-import` allows `**/*.css`,
+  which Vite loads that way. A side-effect import of a module still fails.
+- **Storybook's preview may export a default:** `import/no-default-export` is
+  off in `.storybook/preview.ts` and `.storybook/preview.tsx`, which Storybook
+  loads by their default export, as it is in `*.config.ts` and `main.ts`.
+  Nothing else in `.storybook/` changes.
+
 ## Library builds
 
 `pack(entries)` gives `vp pack` the settings a package published to npm needs:
