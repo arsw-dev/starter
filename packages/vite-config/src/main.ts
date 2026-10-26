@@ -71,7 +71,8 @@ const lint = {
     // An export list in order, as sort-imports keeps an import's names
     'arsw/sorted-exports': 'error',
     // Imports: name the .ts file, never climb out with ../
-    // never import only for side effects
+    // never import only for side effects, apart from a stylesheet, which Vite
+    // loads as one
     'import/extensions': [
       'error',
       'always',
@@ -82,7 +83,12 @@ const lint = {
     ],
     'import/no-relative-parent-imports': 'error',
     'arsw/import-path': 'error',
-    'import/no-unassigned-import': 'error',
+    'import/no-unassigned-import': [
+      'error',
+      {
+        allow: ['**/*.css'],
+      },
+    ],
     'unicorn/filename-case': [
       'error',
       {
@@ -127,9 +133,14 @@ const lint = {
   },
   overrides: [
     {
-      // Tools load these from their default export: config files, and
-      // entry points (oxlint a plugin, Cloudflare a Worker)
-      files: ['**/*.config.ts', '**/main.ts'],
+      // Tools load these from their default export: config files, entry
+      // points (oxlint a plugin, Cloudflare a Worker) and Storybook's preview
+      files: [
+        '**/*.config.ts',
+        '**/main.ts',
+        '**/.storybook/preview.ts',
+        '**/.storybook/preview.tsx',
+      ],
       rules: {
         'import/no-default-export': 'off',
       },
