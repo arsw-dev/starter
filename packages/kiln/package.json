@@ -1,12 +1,15 @@
 {
   "name": "@arsw/kiln",
-  "version": "0.1.1",
-  "description": "An API framework on Hono for Cloudflare Workers: routes that declare only their own responses, and Kiln the ones it causes, so the OpenAPI document is the contract. Under /model, Drizzle tables on D1 and Zod schemas from one model",
+  "version": "0.2.0",
+  "description": "An API framework on Hono for Cloudflare Workers: routes that declare only their own responses, and Kiln the ones it causes, so the OpenAPI document is the contract, which its kiln command writes. Under /model, Drizzle tables on D1 and Zod schemas from one model",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/arsw-dev/starter.git",
     "directory": "packages/kiln"
+  },
+  "bin": {
+    "kiln": "./src/cli.ts"
   },
   "files": [
     "dist",
@@ -18,10 +21,12 @@
   },
   "exports": {
     ".": "./src/main.ts",
-    "./model": "./src/model.ts",
-    "./document": "./src/document.ts"
+    "./model": "./src/model.ts"
   },
   "publishConfig": {
+    "bin": {
+      "kiln": "./dist/cli.mjs"
+    },
     "exports": {
       ".": {
         "types": "./dist/main.d.mts",
@@ -30,10 +35,6 @@
       "./model": {
         "types": "./dist/model.d.mts",
         "default": "./dist/model.mjs"
-      },
-      "./document": {
-        "types": "./dist/document.d.mts",
-        "default": "./dist/document.mjs"
       }
     },
     "access": "public"

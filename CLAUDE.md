@@ -56,13 +56,15 @@ or config file, or a lint exemption.
   `pnpm db:generate` and commit the migration.
 - **Operations name the columns they read and return** (`readColumns`), so a new
   internal column never reaches a response.
-- **Errors are types:** an operation throws an `HttpError` (`NotFound`,
-  `Conflict`, …), and the app's error handler answers with its status. Every
-  error is `{ message }`, and a request that fails its schema is a 422 with
+- **Errors are returned by name:** an operation returns what it found, or
+  `undefined`, never an HTTP error; the route decides which error that is and
+  returns it (`return errors.notFound()`). Anything thrown is a 500. Every error
+  is `{ message }`, and a request that fails its schema is a 422 with
   `{ message, issues }`.
 - **A route declares what's its own** (`defineRoute`): its success response and
-  the errors its operations throw. Kiln adds the ones it causes (500, 422, 400,
-  415), so the OpenAPI document, committed as `docs/openapi.json`, is the API's
+  its errors, by name, which the types check against what its handler returns.
+  Kiln adds the ones it causes (500, 422, 400, 415), so the OpenAPI document,
+  committed as `docs/openapi.json` and written by `pnpm openapi`, is the API's
   contract.
 
 ## The app

@@ -1,5 +1,67 @@
 # Changelog
 
+## 0.2.0
+
+Every response the document lists is one the code it's declared beside produces,
+and the types check the two against each other. Errors are values, declared by
+name and returned from the handler; every route gives its policy once an API
+registers one; routes are the only thing an app mounts; and the app carries its
+document's details, which the `kiln` command writes and checks.
+
+### Breaking
+
+- **Errors are returned by name.** A route, a middleware and the policy declare
+  their errors by name, `errors: { notFound: 'Cannot find todo' }`, where they
+  were by status. The handler gets a function for each as its last argument,
+  `handler: (c, errors) => …`, and fails by returning one:
+  `return errors.notFound()` answers `{ message }` with the declared
+  description, or the message given. Returning a name that isn't declared, and
+  declaring one that's never returned, are type errors. A route's handler no
+  longer gets `next`.
+- **`HttpError`, `Unauthorized`, `Forbidden`, `NotFound` and `Conflict` are
+  removed.** Anything a handler, middleware, operation or the policy throws is a
+  500, logged as before. Operations return data, or `undefined`, and the route
+  says which error that is. An `HTTPException` is a 500 too, but for Kiln's own
+  400 and 415.
+- **`defineMiddleware` takes one object,** `{ errors, handler }`, whose handler
+  gets the errors as its last argument; a middleware that only sets something is
+  a plain Hono handler in the list. `createMiddleware` is removed.
+- **`access` is `policy`,** and `Access` is `Policy`, read from
+  `Register['policy']`. A registered policy is JSON, since it's written to the
+  document; anything else is a type error. Once one is registered, every route
+  gives its policy: leaving it out is a type error.
+- **`createApp`'s `policy` replaces `authorize`,** and `defineAuthorize` and
+  `Authorize` are removed: `policy: { errors, enforce }`, needed once a policy
+  is registered and refused when none is. `enforce(c, policy, errors)` gets the
+  route's own policy, never `undefined`, and refuses by returning an error. It
+  runs for every route.
+- **Routers are removed.** `routes` maps each path to a record of routes only.
+  `createRouter`, `Router`, `json`, `errors`, `invalidRequest`, `serverError`,
+  `malformedBody` and `unsupportedBody` are no longer exported, nor `notFound`,
+  `onError` and `toErrorResponse`, which only an app assembled by hand used.
+  `errorSchema`, `invalidSchema`, `issueSchema` and `LOCATIONS` still are.
+- **`writeDocument` and `@arsw/kiln/document` are removed,** for `createApp`'s
+  `document` and the `kiln document` command.
+- **`createApp` returns the app as before, an `OpenAPIHono`,** since a typed
+  client (`hc`) and `@arsw/start-hono`'s `connect` both take only a Hono app.
+  Routes added to it afterwards aren't supported: they'd have none of Kiln's
+  responses, errors or policy. Without `.use()` to chain, its type no longer
+  needs a class of its own.
+- **`ErrorStatus` and `ErrorDescriptions` are no longer exported,** and
+  `DocumentOptions` is removed. `ErrorName`, `Errors` and `ErrorResponse` type
+  errors by name, `AppPolicy` a policy written in a file of its own, and
+  `DocumentInfo` the document's details.
+
+### Added
+
+- **`createApp`'s `document`,** `{ title, version }`: the document's `info`.
+- **`kiln document`,** the package's command, in Node: it loads the API's app
+  (`src/main.ts`, or `--entry`) and writes its OpenAPI 3.1 document to
+  `docs/openapi.json` (or `--out`). With `--check`, it writes nothing, and fails
+  when the file is missing or stale, naming it and listing what differs.
+- **`x-policy`:** with a policy registered, each operation in the document
+  carries its route's policy as declared.
+
 ## 0.1.1
 
 A route says who may call it, and the app checks that before the route runs.

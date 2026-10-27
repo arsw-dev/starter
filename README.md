@@ -44,7 +44,7 @@ The app is at <http://localhost:5173> and the API at <http://localhost:8787>.
 | `pnpm dev`         | Every package's dev server                                                                     |
 | `pnpm db:generate` | In an API: a migration from its models' changes                                                |
 | `pnpm db:migrate`  | In an API: applies its migrations to the local database                                        |
-| `pnpm openapi`     | In an API: writes its OpenAPI document, `docs/openapi.json`                                    |
+| `pnpm openapi`     | In an API: writes its OpenAPI document, `docs/openapi.json`; `--check` only compares it        |
 
 The pre-commit hook regenerates the Workers' types, runs `vp check` and
 `vp test`, and fails if an API's OpenAPI document no longer matches its routes.

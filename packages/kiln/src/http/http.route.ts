@@ -1,21 +1,26 @@
 import { z } from '@hono/zod-openapi';
 
-import { toAuthorizeMiddleware } from './http.authorize.ts';
+import { toErrors } from './http.errors.ts';
+import { toPolicyMiddleware } from './http.policy.ts';
 import { createRouter } from './http.router.ts';
 import {
-  errors,
+  bodyErrors,
   invalidRequest,
   json,
-  malformedBody,
   serverError,
-  unsupportedBody,
+  toResponses,
 } from './http.schemas.ts';
 
-import type { Authorize } from './http.authorize.ts';
-import type { Router } from './http.router.ts';
+import type {
+  Declaration,
+  Errors,
+  KilnErrorName,
+  StatusOf,
+} from './http.errors.ts';
+import type { AnyPolicy } from './http.policy.ts';
 import type { ErrorDeclaration, invalidSchema } from './http.schemas.ts';
-import type { Access, AppEnv, ErrorDescriptions } from './http.types.ts';
-import type { RouteConfig, RouteHandler } from '@hono/zod-openapi';
+import type { AppEnv, Policy } from './http.types.ts';
+import type { OpenAPIHono, RouteConfig, RouteHandler } from '@hono/zod-openapi';
 import type {
   ContentlessStatusCode,
   SuccessStatusCode,
@@ -80,7 +85,7 @@ type RequestOf<Params, Query, Headers, Body> = Simplify<
 type ResponsesOf<
   Status extends number,
   Response,
-  Errors,
+  Names extends string,
   Request,
   Body,
 > = Simplify<
@@ -95,7 +100,7 @@ type ResponsesOf<
             description: string;
           };
   } & {
-    [Code in keyof Errors]: ErrorDeclaration;
+    [Code in StatusOf<Names>]: ErrorDeclaration;
   } & {
     500: ErrorDeclaration;
   } & ([keyof Request] extends [never]
@@ -111,17 +116,37 @@ type ResponsesOf<
       : {})
 >;
 
-// The statuses Kiln declares on a route, which the route itself can't
-type KilnStatus<Body> =
-  | 422
-  | 500
-  | (Body extends BodyInput ? 400 | 415 : never);
+// The names Kiln answers on a route, which the route itself can't declare
+type KilnNameOf<Body> =
+  | KilnErrorName
+  | (Body extends BodyInput ? 'badRequest' | 'unsupportedMediaType' : never);
 
-// A route as zod-openapi registers it, its handler, and who may call it
+// A route's policy, with a policy registered and only then
+type PolicyField<Given> = [Given] extends [never]
+  ? {
+      policy?: never;
+    }
+  : {
+      policy: Given;
+    };
+
+// What zod-openapi lets a route's handler see
+type ContextOf<Config extends RouteConfig> = Parameters<
+  RouteHandler<Config, AppEnv>
+>[0];
+
+// And answer: its typed responses, and a plain Response for a route with one
+// that has no body. zod-openapi's own type takes a promise of one or of the
+// other, never of both, as an async handler that answers both returns
+type ResponseOf<Config extends RouteConfig> =
+  | Awaited<ReturnType<RouteHandler<Config, AppEnv>>>
+  | Promise<Awaited<ReturnType<RouteHandler<Config, AppEnv>>>>;
+
+// A route as zod-openapi registers it, its handler, and its policy
 type Route<Config extends RouteConfig = RouteConfig> = {
   route: Config;
-  handler: RouteHandler<Config, AppEnv>;
-  access?: Access;
+  handler: (c: ContextOf<Config>) => ResponseOf<Config>;
+  policy?: Policy;
 };
 
 // Any route, whatever its handler: a handler is typed by its own route, so
@@ -129,7 +154,7 @@ type Route<Config extends RouteConfig = RouteConfig> = {
 type AnyRoute = {
   route: RouteConfig;
   handler: unknown;
-  access?: Access;
+  policy?: Policy;
 };
 
 type RouteOf<
@@ -141,7 +166,7 @@ type RouteOf<
   Body,
   Status extends number,
   Response,
-  Errors,
+  Names extends string,
 > = {
   method: Method;
   path: Path;
@@ -149,7 +174,7 @@ type RouteOf<
   responses: ResponsesOf<
     Status,
     Response,
-    Errors,
+    Names,
     RequestOf<Params, Query, Headers, Body>,
     Body
   >;
@@ -176,14 +201,10 @@ const toBody = (body: BodyInput) => {
   };
 };
 
-// What a route with a body can answer before its handler runs
-const bodyErrors = {
-  ...malformedBody,
-  ...unsupportedBody,
-};
-
 // A route, as one object: its contract and its handler, typed from the rest.
-// Kiln adds the responses it causes itself, and a route can't declare those
+// Kiln adds the responses it causes itself, and a route can't declare those.
+// The handler gets the route's errors as its last argument, and answers one by
+// returning it
 const defineRoute = <
   const Method extends RouteConfig['method'],
   const Path extends string,
@@ -193,7 +214,12 @@ const defineRoute = <
   Body extends BodyInput | undefined = undefined,
   Status extends SuccessStatusCode = 200,
   Response extends z.ZodType | undefined = undefined,
-  const Errors extends ErrorDescriptions = {},
+  Names extends string = never,
+  Return extends ResponseOf<
+    RouteOf<Method, Path, Params, Query, Headers, Body, Status, Response, Names>
+  > = ResponseOf<
+    RouteOf<Method, Path, Params, Query, Headers, Body, Status, Response, Names>
+  >,
 >(
   config: {
     method: Method;
@@ -205,29 +231,29 @@ const defineRoute = <
     status?: Status;
     response?: Response;
     description: string;
-    errors?: Errors & {
-      [Code in KilnStatus<Body>]?: never;
-    };
-    access?: Access;
-    handler: RouteHandler<
-      RouteOf<
-        Method,
-        Path,
-        Params,
-        Query,
-        Headers,
-        Body,
-        Status,
-        Response,
-        Errors
+    errors?: Declaration<Names, Return, KilnNameOf<Body>>;
+    handler: (
+      c: ContextOf<
+        RouteOf<
+          Method,
+          Path,
+          Params,
+          Query,
+          Headers,
+          Body,
+          Status,
+          Response,
+          Names
+        >
       >,
-      AppEnv
-    >;
-  } & (Status extends ContentlessStatusCode
-    ? {
-        response?: never;
-      }
-    : {}),
+      errors: Errors<Names>,
+    ) => Return;
+  } & PolicyField<Policy> &
+    (Status extends ContentlessStatusCode
+      ? {
+          response?: never;
+        }
+      : {}),
 ) => {
   const {
     method,
@@ -240,7 +266,7 @@ const defineRoute = <
     response,
     description,
     errors: declared = {},
-    access,
+    policy,
     handler,
   } = config;
   // Only the schemas given: zod-openapi validates and documents each one there
@@ -262,39 +288,34 @@ const defineRoute = <
         : {
             description,
           },
-      ...errors(declared),
+      ...toResponses(declared),
       ...(Object.keys(request).length > 0 ? invalidRequest : {}),
       ...(body ? bodyErrors : {}),
       ...serverError,
     },
   };
 
+  // What zod-openapi runs: the handler, given the route's errors for the request
+  const registered: Route<
+    RouteOf<Method, Path, Params, Query, Headers, Body, Status, Response, Names>
+  >['handler'] = (c) => handler(c, toErrors(c, declared));
+
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the route built from config, typed by config's own type parameters, which TypeScript can't follow through the object built
   return {
     route,
-    handler,
-    ...(access === undefined
+    handler: registered,
+    ...(policy === undefined
       ? {}
       : {
-          access,
+          policy,
         }),
   } as Route<
-    RouteOf<
-      Method,
-      Path,
-      Params,
-      Query,
-      Headers,
-      Body,
-      Status,
-      Response,
-      Errors
-    >
+    RouteOf<Method, Path, Params, Query, Headers, Body, Status, Response, Names>
   >;
 };
 
 // A router, for its type alone: what openapiRoutes returns on one
-declare const router: Router<AppEnv>;
+declare const router: OpenAPIHono<AppEnv>;
 
 // A record's router, as openapiRoutes types it. zod-openapi gives no routes to
 // the client for an array of unknown length, so the routes are a tuple of one:
@@ -304,21 +325,22 @@ type RecordRouter<Routes extends Record<string, AnyRoute>> = ReturnType<
   typeof router.openapiRoutes<[Routes[keyof Routes]]>
 >;
 
-// A route as a record registers it: under its key, and with an authorize,
-// checked before its validators and declaring the check's errors, beside its
-// own, which win
+// A route as a record registers it: under its key, and with a policy, enforced
+// before its validators, declaring enforce's errors beside its own, which win,
+// and saying the route's policy in the document
 const toRegistered = (
   operationId: string,
-  { route, access }: AnyRoute,
-  authorize?: Authorize,
+  { route, policy }: AnyRoute,
+  enforced?: AnyPolicy,
 ): RouteConfig =>
-  authorize
+  enforced && policy !== undefined
     ? {
         ...route,
         operationId,
-        middleware: toAuthorizeMiddleware(authorize, access),
+        'x-policy': policy,
+        middleware: toPolicyMiddleware(enforced, policy),
         responses: {
-          ...errors(authorize.errors),
+          ...toResponses(enforced.errors ?? {}),
           ...route.responses,
         },
       }
@@ -331,15 +353,15 @@ const toRegistered = (
 // its key as its operationId
 const toRouter = <Routes extends Record<string, AnyRoute>>(
   routes: Routes,
-  authorize?: Authorize,
+  enforced?: AnyPolicy,
 ): RecordRouter<Routes> =>
   createRouter().openapiRoutes(
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- an array at runtime, typed as one element, the union of every route, which zod-openapi's merge spreads over each route
     Object.entries(routes).map(([operationId, entry]) => ({
-      route: toRegistered(operationId, entry, authorize),
+      route: toRegistered(operationId, entry, enforced),
       handler: entry.handler,
     })) as [Routes[keyof Routes]],
   );
 
 export { defineRoute, toRouter };
-export type { AnyRoute, Route };
+export type { AnyRoute, PolicyField, Route };
