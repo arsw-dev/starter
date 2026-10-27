@@ -1,5 +1,6 @@
 import { z } from '@hono/zod-openapi';
 
+import { toAuthorizeMiddleware } from './http.authorize.ts';
 import { createRouter } from './http.router.ts';
 import {
   errors,
@@ -10,9 +11,10 @@ import {
   unsupportedBody,
 } from './http.schemas.ts';
 
+import type { Authorize } from './http.authorize.ts';
 import type { Router } from './http.router.ts';
 import type { ErrorDeclaration, invalidSchema } from './http.schemas.ts';
-import type { AppEnv, ErrorDescriptions } from './http.types.ts';
+import type { Access, AppEnv, ErrorDescriptions } from './http.types.ts';
 import type { RouteConfig, RouteHandler } from '@hono/zod-openapi';
 import type {
   ContentlessStatusCode,
@@ -115,10 +117,11 @@ type KilnStatus<Body> =
   | 500
   | (Body extends BodyInput ? 400 | 415 : never);
 
-// A route as zod-openapi registers it, and its handler
+// A route as zod-openapi registers it, its handler, and who may call it
 type Route<Config extends RouteConfig = RouteConfig> = {
   route: Config;
   handler: RouteHandler<Config, AppEnv>;
+  access?: Access;
 };
 
 // Any route, whatever its handler: a handler is typed by its own route, so
@@ -126,6 +129,7 @@ type Route<Config extends RouteConfig = RouteConfig> = {
 type AnyRoute = {
   route: RouteConfig;
   handler: unknown;
+  access?: Access;
 };
 
 type RouteOf<
@@ -204,6 +208,7 @@ const defineRoute = <
     errors?: Errors & {
       [Code in KilnStatus<Body>]?: never;
     };
+    access?: Access;
     handler: RouteHandler<
       RouteOf<
         Method,
@@ -235,6 +240,7 @@ const defineRoute = <
     response,
     description,
     errors: declared = {},
+    access,
     handler,
   } = config;
   // Only the schemas given: zod-openapi validates and documents each one there
@@ -267,6 +273,11 @@ const defineRoute = <
   return {
     route,
     handler,
+    ...(access === undefined
+      ? {}
+      : {
+          access,
+        }),
   } as Route<
     RouteOf<
       Method,
@@ -293,19 +304,40 @@ type RecordRouter<Routes extends Record<string, AnyRoute>> = ReturnType<
   typeof router.openapiRoutes<[Routes[keyof Routes]]>
 >;
 
+// A route as a record registers it: under its key, and with an authorize,
+// checked before its validators and declaring the check's errors, beside its
+// own, which win
+const toRegistered = (
+  operationId: string,
+  { route, access }: AnyRoute,
+  authorize?: Authorize,
+): RouteConfig =>
+  authorize
+    ? {
+        ...route,
+        operationId,
+        middleware: toAuthorizeMiddleware(authorize, access),
+        responses: {
+          ...errors(authorize.errors),
+          ...route.responses,
+        },
+      }
+    : {
+        ...route,
+        operationId,
+      };
+
 // A record of routes as a router, each registered in the record's order with
 // its key as its operationId
 const toRouter = <Routes extends Record<string, AnyRoute>>(
   routes: Routes,
+  authorize?: Authorize,
 ): RecordRouter<Routes> =>
   createRouter().openapiRoutes(
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- an array at runtime, typed as one element, the union of every route, which zod-openapi's merge spreads over each route
-    Object.entries(routes).map(([operationId, { route, handler }]) => ({
-      route: {
-        ...route,
-        operationId,
-      },
-      handler,
+    Object.entries(routes).map(([operationId, entry]) => ({
+      route: toRegistered(operationId, entry, authorize),
+      handler: entry.handler,
     })) as [Routes[keyof Routes]],
   );
 

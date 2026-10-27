@@ -1,4 +1,5 @@
 export { createApp } from './app/app.ts';
+export { defineAuthorize } from './http/http.authorize.ts';
 export {
   Conflict,
   Forbidden,
@@ -24,8 +25,10 @@ export {
   serverError,
   unsupportedBody,
 } from './http/http.schemas.ts';
+export type { Authorize } from './http/http.authorize.ts';
 export type { Middleware } from './http/http.middleware.ts';
 export type {
+  Access,
   AppEnv,
   ErrorBody,
   ErrorDescriptions,
