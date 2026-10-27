@@ -37,6 +37,7 @@ Whoever produces a response declares it:
 | 400 (a body that isn't JSON), 415 (not sent as JSON) | Hono and zod-openapi | Kiln, when the route has a body           |
 | 500                                                  | `onError`            | Kiln, on every route                      |
 | A middleware's (401, 403)                            | The middleware       | The middleware, added to every route      |
+| The check's (401, 403)                               | `authorize`          | `authorize`, added to every record route  |
 
 A route can't declare one of Kiln's: it's a type error.
 
@@ -182,6 +183,84 @@ API that uses it registers itself: Kiln doesn't, since a registration applies to
 every API, those without a database too. Its bindings are typed by
 `Cloudflare.Env`, which `wrangler types` writes. `AppEnv` is the env every
 handler sees, for a function that takes a context.
+
+## Access
+
+An API can have more than one kind of caller, and not every caller may use every
+route. A route says who may call it, with `access`, and the app checks that
+before the route runs. The type of the rule is declared once, beside the
+variables:
+
+```ts
+// src/kiln.d.ts
+declare module '@arsw/kiln' {
+  interface Register {
+    variables: {
+      caller: Caller;
+    };
+    access: 'read' | 'write';
+  }
+}
+```
+
+Without it, a route can't set `access`. A route sets it as one of its fields,
+and Kiln never reads what it means:
+
+```ts
+const createTodo = defineRoute({
+  method: 'post',
+  path: '/',
+  body: todosModel.createSchema,
+  status: 201,
+  response: todosModel.readSchema,
+  description: 'Todo created',
+  access: 'write',
+  handler: async (c) =>
+    c.json(await todosOps.create(c.var.db, c.req.valid('json')), 201),
+});
+```
+
+`defineAuthorize(check, { errors })` reads it, and declares the errors it
+answers with, as a middleware does. `check(c, access)` gets the route's
+`access`, or `undefined` for a route that sets none, so a route that says
+nothing can be refused rather than allowed by default. It may be async, and it
+refuses by throwing an `HttpError`:
+
+```ts
+import { Forbidden, defineAuthorize } from '@arsw/kiln';
+
+// A guest may only read: a route that writes, or says nothing, is for members
+const byCaller = defineAuthorize(
+  (c, access) => {
+    if (c.var.caller.kind === 'guest' && access !== 'read') {
+      throw new Forbidden('Guests may only read');
+    }
+  },
+  {
+    errors: {
+      403: 'The caller may not call this route',
+    },
+  },
+);
+
+export default createApp({
+  middleware: [signedIn],
+  authorize: byCaller,
+  routes: {
+    '/todos': todosRoutes,
+  },
+});
+```
+
+`createApp` runs the check for every route in a record, after the middleware, so
+`c.var` has what they set, and before the route validates its request, so a
+refused caller gets the refusal, never a 422 that shows the route's schema. Its
+errors are added to each of those routes in the document. A route's own
+description of a status wins over the check's, and the check's over a
+middleware's.
+
+A router given in `routes` isn't checked and doesn't get the errors: its routes
+are its own, and it guards them itself.
 
 ## Errors
 
