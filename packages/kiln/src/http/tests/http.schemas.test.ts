@@ -1,33 +1,12 @@
-import { createRoute, z } from '@hono/zod-openapi';
-import { hc } from 'hono/client';
-import { expect, expectTypeOf, it } from 'vite-plus/test';
+import { expect, it } from 'vite-plus/test';
 
-import { createRouter } from '#/http/http.router.ts';
-import { errorSchema, errors, json } from '#/http/http.schemas.ts';
+import { errorSchema, json, toResponses } from '#/http/http.schemas.ts';
 
-import type { InferResponseType } from 'hono/client';
-
-const route = createRoute({
-  method: 'get',
-  path: '/',
-  responses: {
-    200: json(
-      z.object({
-        id: z.string(),
-      }),
-      'One item',
-    ),
-    ...errors({
-      404: 'Cannot find item',
-    }),
-  },
-});
-
-it('makes each status an error body with its description', () => {
+it('makes each name an error body under its status, with what it means', () => {
   expect(
-    errors({
-      404: 'Cannot find item',
-      409: 'Item already exists',
+    toResponses({
+      notFound: 'Cannot find item',
+      conflict: 'Item already exists',
     }),
   ).toEqual({
     404: json(errorSchema, 'Cannot find item'),
@@ -35,30 +14,10 @@ it('makes each status an error body with its description', () => {
   });
 });
 
-it('types a handler against the statuses it declares', () => {
-  const router = createRouter().openapi(route, (c) =>
-    c.json(
-      {
-        message: 'Cannot find item',
-      },
-      404,
-    ),
-  );
-  const client = hc<typeof router>('http://localhost');
-
-  expectTypeOf<
-    InferResponseType<typeof client.index.$get, 404>
-  >().toEqualTypeOf<{
-    message: string;
-  }>();
-
-  createRouter().openapi(route, (c) =>
-    // @ts-expect-error: 409 isn't one of the route's responses
-    c.json(
-      {
-        message: 'Item already exists',
-      },
-      409,
-    ),
-  );
+it('leaves out a name that is no error', () => {
+  expect(
+    toResponses({
+      notAnError: 'Something',
+    }),
+  ).toEqual({});
 });

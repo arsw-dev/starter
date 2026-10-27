@@ -1,74 +1,154 @@
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
-
 import {
-  Conflict,
-  Forbidden,
-  HttpError,
-  NotFound,
-  Unauthorized,
-  onError,
-  toErrorResponse,
-} from '#/http/http.errors.ts';
+  afterEach,
+  describe,
+  expect,
+  expectTypeOf,
+  it,
+  vi,
+} from 'vite-plus/test';
 
-it.each([
-  ['Unauthorized', Unauthorized, 401],
-  ['Forbidden', Forbidden, 403],
-  ['NotFound', NotFound, 404],
-  ['Conflict', Conflict, 409],
-])('makes a %s a %i, with its message', (_, Kind, status) => {
-  expect(toErrorResponse(new Kind('Todo not found'))).toEqual({
-    status,
-    body: {
-      message: 'Todo not found',
+import { onError, toErrors } from '#/http/http.errors.ts';
+
+import type { Declaration } from '#/http/http.errors.ts';
+import type { TypedResponse } from 'hono';
+
+describe('the errors a declaration gives', () => {
+  // A route that answers whichever error its query names, with the message
+  // its query gives, if any
+  const app = new Hono().get('/', (c) => {
+    const errors = toErrors(c, {
+      notFound: 'Cannot find item',
+      conflict: 'Item already exists',
+      tooManyRequests: 'Slow down',
+    });
+    const name = c.req.query('name');
+    const message = c.req.query('message');
+
+    if (name === 'notFound') return errors.notFound(message);
+    if (name === 'conflict') return errors.conflict(message);
+
+    return errors.tooManyRequests(message);
+  });
+
+  const answer = async (query: string) => {
+    const response = await app.request(`/?${query}`);
+
+    return {
+      status: response.status,
+      body: await response.json(),
+    };
+  };
+
+  it.each([
+    ['notFound', 404, 'Cannot find item'],
+    ['conflict', 409, 'Item already exists'],
+    ['tooManyRequests', 429, 'Slow down'],
+  ])(
+    'answers %s with its status and the declared description',
+    async (name, status, message) => {
+      expect(await answer(`name=${name}`)).toEqual({
+        status,
+        body: {
+          message,
+        },
+      });
     },
+  );
+
+  it('answers with the message given, over the description', async () => {
+    expect(await answer('name=notFound&message=Todo+was+deleted')).toEqual({
+      status: 404,
+      body: {
+        message: 'Todo was deleted',
+      },
+    });
+  });
+
+  it('gives nothing for a name that is no error', async () => {
+    const names = new Hono().get('/', (c) =>
+      c.json(
+        Object.keys(
+          toErrors(c, {
+            notFound: 'Cannot find item',
+            notAnError: 'Something',
+          }),
+        ),
+      ),
+    );
+
+    expect(await (await names.request('/')).json()).toEqual(['notFound']);
   });
 });
 
-it("answers an API's own HttpError with the status it declares", () => {
-  class Gone extends HttpError {
-    override name = 'Gone';
-    readonly status = 410;
-  }
+// What an app whose one route throws the error given answers
+const answerThrown = async (err: Error) => {
+  const response = await new Hono()
+    .get('/', () => {
+      throw err;
+    })
+    .onError(onError)
+    .request('/');
 
-  expect(toErrorResponse(new Gone('Todo was archived'))).toEqual({
-    status: 410,
-    body: {
-      message: 'Todo was archived',
-    },
-  });
-});
+  return {
+    status: response.status,
+    body: await response.json(),
+  };
+};
 
-it('leaves a 422 to the validation hook, whose body has issues', () => {
-  class Invalid extends HttpError {
-    override name = 'Invalid';
-    // @ts-expect-error: no HttpError can answer a 422 without its issues
-    readonly status = 422;
-  }
-
-  void Invalid;
-});
-
-it("keeps an HTTPException's own status and message", () => {
-  const err = new HTTPException(401, {
-    message: 'Unauthorized',
+describe('what a thrown error answers', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
-  expect(toErrorResponse(err)).toEqual({
-    status: 401,
-    body: {
-      message: 'Unauthorized',
+  it.each([
+    [400, 'Malformed JSON in request body'],
+    [415, 'Unsupported Media Type'],
+  ] as const)(
+    "keeps the %i Hono and zod-openapi throw for a body, Kiln's own",
+    async (status, message) => {
+      expect(
+        await answerThrown(
+          new HTTPException(status, {
+            message,
+          }),
+        ),
+      ).toEqual({
+        status,
+        body: {
+          message,
+        },
+      });
     },
-  });
-});
+  );
 
-it('makes anything else a 500 that says nothing about it', () => {
-  expect(toErrorResponse(new Error('the database password'))).toEqual({
-    status: 500,
-    body: {
-      message: 'Internal Server Error',
-    },
+  it('makes anything else a 500 that says nothing about it', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    expect(
+      await Promise.all([
+        answerThrown(new Error('the database password')),
+        answerThrown(
+          new HTTPException(403, {
+            message: 'the token was refused',
+          }),
+        ),
+      ]),
+    ).toEqual([
+      {
+        status: 500,
+        body: {
+          message: 'Internal Server Error',
+        },
+      },
+      {
+        status: 500,
+        body: {
+          message: 'Internal Server Error',
+        },
+      },
+    ]);
   });
 });
 
@@ -78,7 +158,9 @@ describe('the log of a 500', () => {
       throw new TypeError('the database password');
     })
     .get('/todos/:id', () => {
-      throw new NotFound('Todo not found');
+      throw new HTTPException(400, {
+        message: 'Malformed JSON in request body',
+      });
     })
     .onError(onError);
 
@@ -128,7 +210,50 @@ describe('the log of a 500', () => {
   it('is written for a 500 only', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    expect((await send('GET')).status).toBe(404);
+    expect((await send('GET')).status).toBe(400);
     expect(log).not.toHaveBeenCalled();
+  });
+});
+
+// What a declaration's type says, which is the message in the editor: each
+// name a type error that says what's wrong with it
+describe("a declaration's type", () => {
+  // A handler's return type: one 404, and a success
+  type Answered =
+    | TypedResponse<
+        {
+          message: string;
+        },
+        404,
+        'json'
+      >
+    | TypedResponse<{}, 200, 'json'>;
+
+  it('takes a name the handler returns', () => {
+    expectTypeOf<
+      Declaration<'notFound', Answered, never>['notFound']
+    >().toEqualTypeOf<string>();
+  });
+
+  it('says a name is declared but never returned', () => {
+    expectTypeOf<
+      Declaration<'notFound' | 'conflict', Answered, never>['conflict']
+    >().toEqualTypeOf<'conflict is declared but never returned'>();
+    expectTypeOf<
+      Declaration<'notFound', Promise<Answered | Response>, never>['notFound']
+    >().toEqualTypeOf<string>();
+  });
+
+  it("says a name is Kiln's to answer, or no error's", () => {
+    expectTypeOf<
+      Declaration<
+        'internalServerError',
+        Answered,
+        'internalServerError'
+      >['internalServerError']
+    >().toEqualTypeOf<'internalServerError is answered by Kiln'>();
+    expectTypeOf<
+      Declaration<'notAnError', Answered, never>['notAnError']
+    >().toEqualTypeOf<"notAnError is not an error's name">();
   });
 });

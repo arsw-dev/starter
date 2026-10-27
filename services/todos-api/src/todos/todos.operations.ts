@@ -1,24 +1,19 @@
 import { desc, eq } from 'drizzle-orm';
 
-import { NotFound } from '@arsw/kiln';
-
 import { todosModel } from './todos.model.ts';
 
 import type { DB } from '@arsw/kiln/model';
 import type { z } from '@hono/zod-openapi';
 
+// Each one returns what it found, or undefined for a todo that isn't there:
+// which error that is, the route says
 const todosOps = {
-  get: async (db: DB, id: string) => {
-    const todo = await db
+  get: async (db: DB, id: string) =>
+    db
       .select(todosModel.readColumns)
       .from(todosModel.table)
       .where(eq(todosModel.table.id, id))
-      .get();
-
-    if (!todo) throw new NotFound('Todo not found');
-
-    return todo;
-  },
+      .get(),
   getAll: async (db: DB) =>
     db
       .select(todosModel.readColumns)
@@ -34,29 +29,21 @@ const todosOps = {
     db: DB,
     id: string,
     updates: z.infer<typeof todosModel.updateSchema>,
-  ) => {
-    const updatedTodo = await db
+  ) =>
+    db
       .update(todosModel.table)
       .set(updates)
       .where(eq(todosModel.table.id, id))
       .returning(todosModel.readColumns)
-      .get();
-
-    if (!updatedTodo) throw new NotFound('Todo not found');
-
-    return updatedTodo;
-  },
-  delete: async (db: DB, id: string) => {
-    const deletedTodo = await db
+      .get(),
+  delete: async (db: DB, id: string) =>
+    db
       .delete(todosModel.table)
       .where(eq(todosModel.table.id, id))
       .returning({
         id: todosModel.table.id,
       })
-      .get();
-
-    if (!deletedTodo) throw new NotFound('Todo not found');
-  },
+      .get(),
 };
 
 export { todosOps };

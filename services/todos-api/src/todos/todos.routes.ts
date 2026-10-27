@@ -12,10 +12,15 @@ const getTodo = defineRoute({
   response: todosModel.readSchema,
   description: 'One todo',
   errors: {
-    404: 'Cannot find todo',
+    notFound: 'Cannot find todo',
   },
-  handler: async (c) =>
-    c.json(await todosOps.get(c.var.db, c.req.valid('param').id), 200),
+  handler: async (c, errors) => {
+    const todo = await todosOps.get(c.var.db, c.req.valid('param').id);
+
+    if (!todo) return errors.notFound();
+
+    return c.json(todo, 200);
+  },
 });
 
 const getAllTodos = defineRoute({
@@ -51,17 +56,19 @@ const updateTodo = defineRoute({
   response: todosModel.readSchema,
   description: 'Updated todo',
   errors: {
-    404: 'Cannot find todo',
+    notFound: 'Cannot find todo',
   },
-  handler: async (c) =>
-    c.json(
-      await todosOps.update(
-        c.var.db,
-        c.req.valid('param').id,
-        c.req.valid('json'),
-      ),
-      200,
-    ),
+  handler: async (c, errors) => {
+    const todo = await todosOps.update(
+      c.var.db,
+      c.req.valid('param').id,
+      c.req.valid('json'),
+    );
+
+    if (!todo) return errors.notFound();
+
+    return c.json(todo, 200);
+  },
 });
 
 const deleteTodo = defineRoute({
@@ -71,10 +78,12 @@ const deleteTodo = defineRoute({
   status: 204,
   description: 'Todo deleted',
   errors: {
-    404: 'Cannot find todo',
+    notFound: 'Cannot find todo',
   },
-  handler: async (c) => {
-    await todosOps.delete(c.var.db, c.req.valid('param').id);
+  handler: async (c, errors) => {
+    const deleted = await todosOps.delete(c.var.db, c.req.valid('param').id);
+
+    if (!deleted) return errors.notFound();
 
     return c.newResponse(null, 204);
   },
