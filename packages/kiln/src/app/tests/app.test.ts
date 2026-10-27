@@ -12,15 +12,12 @@ import {
 
 import { createApp } from '#/app/app.ts';
 import { defineMiddleware } from '#/http/http.middleware.ts';
+import { definePolicy } from '#/http/http.policy.ts';
 import { defineRoute } from '#/http/http.route.ts';
 import { createRouter } from '#/http/http.router.ts';
 
 import type { OptionsArgs } from '#/app/app.ts';
-import type {
-  AppPolicy,
-  EnforceResponse,
-  PolicyOption,
-} from '#/http/http.policy.ts';
+import type { EnforceResponse, PolicyOption } from '#/http/http.policy.ts';
 import type { AppEnv, Policy, PolicyOf } from '#/http/http.types.ts';
 import type { OpenAPIHono } from '@hono/zod-openapi';
 import type { MiddlewareHandler } from 'hono';
@@ -485,6 +482,17 @@ const call = async (
         }),
   });
 
+// A policy in a file of its own: only an admin may write
+const readOnly = definePolicy({
+  errors: {
+    forbidden: 'The caller may not call this route',
+  },
+  enforce: (c, policy, errors) =>
+    policy === 'write' && c.var.user !== 'admin'
+      ? errors.forbidden()
+      : undefined,
+});
+
 describe('the policy', () => {
   const readItems = defineRoute({
     method: 'get',
@@ -796,42 +804,69 @@ describe('the policy', () => {
     });
   });
 
-  it('takes one written in a file of its own, typed by the errors it names', async () => {
-    const readOnly: AppPolicy<'forbidden'> = {
-      errors: {
-        forbidden: 'The caller may not call this route',
-      },
-      enforce: (_, policy, errors) => {
-        // @ts-expect-error: unauthorized isn't named
-        void errors.unauthorized;
-
-        return policy === 'write' ? errors.forbidden() : undefined;
-      },
-    };
-    // @ts-expect-error: forbidden is named, so it's declared
-    const undeclared: AppPolicy<'forbidden'> = {
-      enforce: () => undefined,
-    };
+  it('takes one definePolicy gives, as it takes one inline', async () => {
     const fromFile = createApp({
       policy: readOnly,
       routes,
     });
 
-    void undeclared;
-
     expect(
-      await call(fromFile, 'writer', 'POST', '/items', {
-        title: 'Milk',
-      }),
-    ).toEqual({
-      status: 403,
-      body: {
-        message: 'The caller may not call this route',
+      await Promise.all([
+        call(fromFile, 'reader', 'GET', '/items'),
+        call(fromFile, 'writer', 'POST', '/items', {
+          title: 'Milk',
+        }),
+      ]),
+    ).toEqual([
+      {
+        status: 200,
+        body: [],
       },
-    });
+      {
+        status: 403,
+        body: {
+          message: 'The caller may not call this route',
+        },
+      },
+    ]);
     expect(documented(fromFile)['/items']?.[403]).toBe(
       'The caller may not call this route',
     );
+  });
+
+  it('checks the errors of one definePolicy gives, as inline', () => {
+    definePolicy({
+      errors: {
+        forbidden: 'The caller may not call this route',
+        // @ts-expect-error: unauthorized is declared but never returned
+        unauthorized: 'Nobody signed in',
+      },
+      enforce: (_, policy, errors) =>
+        policy === 'write' ? errors.forbidden() : undefined,
+    });
+    definePolicy({
+      errors: {
+        forbidden: 'The caller may not call this route',
+      },
+      enforce: (_, policy, errors) => {
+        // @ts-expect-error: unauthorized isn't declared
+        void errors.unauthorized;
+
+        return policy === 'write' ? errors.forbidden() : undefined;
+      },
+    });
+    definePolicy({
+      errors: {
+        // @ts-expect-error: onError's 500 is Kiln's
+        internalServerError: 'Something failed',
+      },
+      enforce: () => undefined,
+    });
+    definePolicy({
+      enforce: (_, policy) => {
+        expectTypeOf(policy).toEqualTypeOf<'read' | 'write'>();
+      },
+    });
   });
 
   it("gives enforce the route's policy, never undefined", () => {

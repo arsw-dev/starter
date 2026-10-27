@@ -1,5 +1,6 @@
 export { createApp } from './app/app.ts';
 export { defineMiddleware } from './http/http.middleware.ts';
+export { definePolicy } from './http/http.policy.ts';
 export { defineRoute } from './http/http.route.ts';
 export {
   LOCATIONS,

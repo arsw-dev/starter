@@ -355,10 +355,25 @@ export default createApp({
 });
 ```
 
-Written inline, its errors are checked against what `enforce` returns, as a
-route's are. `AppPolicy<'forbidden'>` types one written in a file of its own,
-whose errors must be the ones named, but there `createApp` can't see what
-`enforce` returns, so a declared error it never returns isn't caught.
+Its errors are checked against what `enforce` returns, as a route's are. A
+policy can be written inline, as here, or in a file of its own with
+`definePolicy`, which takes the same object, checks it the same way, and gives
+what `createApp`'s `policy` takes:
+
+```ts
+// src/policy.ts
+import { definePolicy } from '@arsw/kiln';
+
+const guestsPolicy = definePolicy({
+  errors: {
+    forbidden: 'The caller may not call this route',
+  },
+  enforce: (c, policy, errors) =>
+    c.var.user.kind === 'guest' && policy.guests === 'none'
+      ? errors.forbidden('Guests may not do this')
+      : undefined,
+});
+```
 
 It runs for every route, after the middleware, so `c.var` has what they set, and
 before the route validates its request, so a refused caller gets the refusal,

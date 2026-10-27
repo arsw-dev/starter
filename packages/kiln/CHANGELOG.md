@@ -34,7 +34,8 @@ document's details, which the `kiln` command writes and checks.
   `Authorize` are removed: `policy: { errors, enforce }`, needed once a policy
   is registered and refused when none is. `enforce(c, policy, errors)` gets the
   route's own policy, never `undefined`, and refuses by returning an error. It
-  runs for every route.
+  runs for every route. Written inline, or in a file of its own with
+  `definePolicy({ errors, enforce })`, it's checked the same way.
 - **Routers are removed.** `routes` maps each path to a record of routes only.
   `createRouter`, `Router`, `json`, `errors`, `invalidRequest`, `serverError`,
   `malformedBody` and `unsupportedBody` are no longer exported, nor `notFound`,
@@ -49,8 +50,8 @@ document's details, which the `kiln` command writes and checks.
   needs a class of its own.
 - **`ErrorStatus` and `ErrorDescriptions` are no longer exported,** and
   `DocumentOptions` is removed. `ErrorName`, `Errors` and `ErrorResponse` type
-  errors by name, `AppPolicy` a policy written in a file of its own, and
-  `DocumentInfo` the document's details.
+  errors by name, `AppPolicy` what `definePolicy` gives, and `DocumentInfo` the
+  document's details.
 
 ### Added
 

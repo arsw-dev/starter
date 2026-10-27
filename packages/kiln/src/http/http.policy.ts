@@ -44,22 +44,34 @@ type PolicyOption<
       policy: PolicyOptions<Given, Names, Return>;
     };
 
-// createApp's policy, written in a file of its own: typed by the errors named,
-// which its errors must declare. Only inline does createApp see what enforce
-// returns, so only there is a declared error that's never returned an error
-type AppPolicy<Names extends Exclude<ErrorName, KilnErrorName> = never> = {
+// A policy as definePolicy gives it: its errors, by name, and enforce, typed
+// as checked, so createApp reads both again without checking them twice
+type AppPolicy<
+  Names extends string = never,
+  Return extends EnforceResponse<Names> = EnforceResponse<Names>,
+> = {
+  errors: Record<Names, string>;
   enforce: (
     c: Context<AppEnv>,
     policy: Policy,
     errors: Errors<Names>,
-  ) => EnforceResponse<Names>;
-} & ([Names] extends [never]
-  ? {
-      errors?: {};
-    }
-  : {
-      errors: Record<Names, string>;
-    });
+  ) => Return;
+};
+
+// createApp's policy, written in a file of its own: the same object as inline,
+// and the same checks. A function only so enforce is typed from the errors,
+// and its errors checked against what it returns
+const definePolicy = <
+  Names extends string = never,
+  Return extends EnforceResponse<Names> = EnforceResponse<Names>,
+>({
+  errors,
+  enforce,
+}: PolicyOptions<Policy, Names, Return>): AppPolicy<Names, Return> => ({
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the declaration, which its type checked: a description for each name
+  errors: (errors ?? {}) as Record<Names, string>,
+  enforce,
+});
 
 // The policy as createApp keeps it, whatever errors it names
 type AnyPolicy = {
@@ -84,5 +96,5 @@ const toPolicyMiddleware =
     return refusal ?? next();
   };
 
-export { toPolicyMiddleware };
+export { definePolicy, toPolicyMiddleware };
 export type { AnyPolicy, AppPolicy, EnforceResponse, PolicyOption };
