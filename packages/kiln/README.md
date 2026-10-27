@@ -1,51 +1,48 @@
 # @arsw/kiln
 
 An API framework on [Hono](https://hono.dev), for Cloudflare Workers. An API
-writes only what's its own: its routes, their success responses, and the errors
-its code throws. Kiln owns everything it causes itself, the responses it sends
-and their place in the OpenAPI document, so the document is the API's contract
-and never leaves a response out.
+writes only what's its own: its routes, their success responses, the errors
+their handlers return, and who may call each one. Kiln owns everything it causes
+itself, the responses it sends and their place in the OpenAPI document, so the
+document is the API's contract and never leaves a response out.
 
 ```sh
 pnpm add @arsw/kiln
 ```
 
 Its peers: `hono`, `@hono/zod-openapi` and `zod`, and `drizzle-orm` for the
-model only. It has three entries:
+model only. It has two entries and a command:
 
-- `@arsw/kiln`: the app, its routes and middleware, and its errors. It runs in
-  Workers.
+- `@arsw/kiln`: the app, its routes, middleware and policy. It runs in Workers.
 - `@arsw/kiln/model`: models that give a [Drizzle](https://orm.drizzle.team)
   table on [D1](https://developers.cloudflare.com/d1/) and its
   [Zod](https://zod.dev) schemas from one list of fields. An API with no
   database installs and imports none of Drizzle.
-- `@arsw/kiln/document`: writes the OpenAPI document, in Node.
-
-Every app is an `OpenAPIHono`, so an API can always drop to Hono or
-[zod-openapi](https://github.com/honojs/middleware/tree/main/packages/zod-openapi)
-for something Kiln doesn't cover.
+- `kiln document`: writes the app's OpenAPI document, or checks it, in Node.
 
 ## The rule
 
 Whoever produces a response declares it:
 
-| Response                                             | Produced by          | Declared by                               |
-| ---------------------------------------------------- | -------------------- | ----------------------------------------- |
-| Success (200, 201, 204)                              | The handler          | The route                                 |
-| The route's own errors (404 from `NotFound`)         | Its operations       | The route                                 |
-| 422, with the issues                                 | The validation hook  | Kiln, when the route has a request schema |
-| 400 (a body that isn't JSON), 415 (not sent as JSON) | Hono and zod-openapi | Kiln, when the route has a body           |
-| 500                                                  | `onError`            | Kiln, on every route                      |
-| A middleware's (401, 403)                            | The middleware       | The middleware, added to every route      |
-| The check's (401, 403)                               | `authorize`          | `authorize`, added to every record route  |
+| Response                                             | Produced by                 | Declared by                               |
+| ---------------------------------------------------- | --------------------------- | ----------------------------------------- |
+| Success (200, 201, 204)                              | The handler                 | The route                                 |
+| The route's errors (`notFound`, `conflict`)          | The handler, returning them | The route                                 |
+| A middleware's (`unauthorized`)                      | The middleware              | The middleware, added to every route      |
+| The policy's (`forbidden`)                           | `enforce`                   | The policy, added to every route          |
+| 422, with the issues                                 | The validation hook         | Kiln, when the route has a request schema |
+| 400 (a body that isn't JSON), 415 (not sent as JSON) | Hono and zod-openapi        | Kiln, when the route has a body           |
+| 500                                                  | Anything thrown             | Kiln, on every route                      |
 
-A route can't declare one of Kiln's: it's a type error.
+Each error is declared by name, beside the code that returns it, and the types
+check one against the other: returning a name that isn't declared, and declaring
+one that's never returned, are both type errors. A route can't declare one of
+Kiln's.
 
 ## The app
 
-`createApp` gives an API's whole app: its middleware, its routes, and the
-not-found and error handlers. `routes` maps each path to a record of routes, or
-to a router:
+`createApp` gives an API's whole app: its middleware, its policy, its routes,
+the not-found and error handlers, and what its document says about it:
 
 ```ts
 // src/main.ts
@@ -55,6 +52,10 @@ import { database } from '@arsw/kiln/model';
 import { todosRoutes } from './todos/todos.routes.ts';
 
 export default createApp({
+  document: {
+    title: 'Todos API',
+    version: '1.0.0',
+  },
   middleware: [database((env) => env.DB), signedIn],
   routes: {
     '/todos': todosRoutes,
@@ -63,9 +64,14 @@ export default createApp({
 ```
 
 `middleware` runs on every request, in order, before every route, so each one
-can use what the ones before it set. One that answers, such as a 401, stops the
-request there. The app's type has every route under its path, so a typed client
-(`hc<typeof app>`) sees them all, with their bodies.
+can use what the ones before it set. `routes` maps each path to a record of
+routes, and nothing else.
+
+The app's type has every route under its path, so a typed client
+(`hc<typeof app>`) sees them all, with their bodies and their errors. It's an
+`OpenAPIHono`, as `hc` needs, but adding routes to it after `createApp()` isn't
+supported: they'd have none of Kiln's responses, errors or policy. What a route
+can't say is a feature for `defineRoute`, not a reason to drop to zod-openapi.
 
 ## Routes
 
@@ -82,10 +88,15 @@ const getTodo = defineRoute({
   response: todosModel.readSchema,
   description: 'One todo',
   errors: {
-    404: 'Cannot find todo',
+    notFound: 'Cannot find todo',
   },
-  handler: async (c) =>
-    c.json(await todosOps.get(c.var.db, c.req.valid('param').id), 200),
+  handler: async (c, errors) => {
+    const todo = await todosOps.get(c.var.db, c.req.valid('param').id);
+
+    if (!todo) return errors.notFound();
+
+    return c.json(todo, 200);
+  },
 });
 
 const todosRoutes = {
@@ -103,49 +114,138 @@ It takes:
   the document should say what it is.
 - The success `status`, 200 unless it says, with its `response` schema (none for
   a 204) and `description`.
-- `errors`: each status the route's own code answers, and what it means here
-  (`'Cannot find todo'`), which an error class can't know.
+- `errors`: each error the handler returns, by name, and what it means here.
+- `policy`, when the API registers one: who may call it.
 - The `handler`, typed from the rest: `c.req.valid()` by the request's schemas,
-  `c.json()` by the declared statuses, and `c.var` by the registered variables.
+  `c.json()` by the declared statuses, `c.var` by the registered variables, and
+  its last argument, `errors`, by the route's errors.
 
 Each route's key in its record is its `operationId` in the document. A record's
 routes are registered in its key order, which matters only where paths overlap:
 put `getNewTodo` (`/new`) before `getTodo` (`/{id}`), or `/new` reaches
 `getTodo`.
 
+## Errors
+
+An error is declared by name, with what it means where it's declared:
+
+```ts
+errors: {
+  notFound: 'Cannot find todo',
+  conflict: 'A todo with this title exists',
+},
+```
+
+Each name is a status's reason phrase in camelCase, in RFC 9110's words:
+
+| Status | Name                          | Status | Name                            |
+| ------ | ----------------------------- | ------ | ------------------------------- |
+| 400    | `badRequest`                  | 422    | `unprocessableContent` (Kiln's) |
+| 401    | `unauthorized`                | 423    | `locked`                        |
+| 402    | `paymentRequired`             | 424    | `failedDependency`              |
+| 403    | `forbidden`                   | 425    | `tooEarly`                      |
+| 404    | `notFound`                    | 426    | `upgradeRequired`               |
+| 405    | `methodNotAllowed`            | 428    | `preconditionRequired`          |
+| 406    | `notAcceptable`               | 429    | `tooManyRequests`               |
+| 407    | `proxyAuthenticationRequired` | 431    | `requestHeaderFieldsTooLarge`   |
+| 408    | `requestTimeout`              | 451    | `unavailableForLegalReasons`    |
+| 409    | `conflict`                    | 500    | `internalServerError` (Kiln's)  |
+| 410    | `gone`                        | 501    | `notImplemented`                |
+| 411    | `lengthRequired`              | 502    | `badGateway`                    |
+| 412    | `preconditionFailed`          | 503    | `serviceUnavailable`            |
+| 413    | `contentTooLarge`             | 504    | `gatewayTimeout`                |
+| 414    | `uriTooLong`                  | 505    | `httpVersionNotSupported`       |
+| 415    | `unsupportedMediaType`        | 506    | `variantAlsoNegotiates`         |
+| 416    | `rangeNotSatisfiable`         | 507    | `insufficientStorage`           |
+| 417    | `expectationFailed`           | 508    | `loopDetected`                  |
+| 421    | `misdirectedRequest`          | 510    | `notExtended`                   |
+|        |                               | 511    | `networkAuthenticationRequired` |
+
+`unprocessableContent` and `internalServerError` are always Kiln's, and
+`badRequest` and `unsupportedMediaType` are on a route with a body: declaring
+one there is a type error.
+
+The handler gets a function for each declared error as its last argument.
+`errors.notFound(message?)` answers `{ message }` with the name's status: the
+message given, or the declared description. Its type is that status's typed JSON
+response, so the handler's return type says which errors it answers, and a typed
+client sees each one's body. The handler fails by **returning** an error, never
+by throwing one:
+
+- **A name that isn't declared** isn't on `errors`: returning it is a type
+  error.
+- **A name that's declared but never returned** is a type error at its
+  declaration, which says so:
+  `Type '"Cannot find todo"' is not assignable to type '"notFound is declared but never returned"'`.
+- **Anything thrown**, by a handler, an operation, a middleware or the policy,
+  is a 500, `Internal Server Error`. The error itself is logged, never sent, as
+  one object, so Workers Logs can filter on each field: `error` (its `name`,
+  `message` and `stack`), `method`, `path` (without the query) and `rayId` (the
+  `cf-ray` header). Nothing of the body or of who sent the request: a log must
+  not carry personal data.
+
+So operations don't answer in HTTP. They return data, `undefined` for what isn't
+there, or a result of their own, and the route decides which error that is:
+
+```ts
+const todosOps = {
+  get: async (db: DB, id: string) =>
+    db
+      .select(todosModel.readColumns)
+      .from(todosModel.table)
+      .where(eq(todosModel.table.id, id))
+      .get(),
+};
+```
+
+Kiln's own errors are JSON with a `message` too:
+
+- **404**, `Not Found`, for a path no route has.
+- **422**, `Invalid Request`, with `issues`: each one's `in` (`body`, `path`,
+  `query`, … in OpenAPI's words), its `path` (`dueDate`, `tags.0`) and
+  `message`. An unknown key is an issue of its own, at its own path.
+- **400** for a body that isn't JSON, and **415** for one not sent as JSON.
+
+`errorSchema` and `invalidSchema` describe the error bodies, `issueSchema` an
+issue, and `LOCATIONS` the names `in` takes, for a client that reads them.
+
 ## Middleware
 
 A middleware that answers a request itself declares what it answers with, as a
-route declares its errors:
+route declares its errors, and gets them as its handler's last argument:
 
 ```ts
 import { defineMiddleware } from '@arsw/kiln';
 
-const signedIn = defineMiddleware(
-  async (c, next) => {
-    // Answers a 401 or a 403, or sets the user
+const signedIn = defineMiddleware({
+  errors: {
+    unauthorized: 'No token was sent',
+    forbidden: 'The token was refused',
+  },
+  handler: async (c, next, errors) => {
+    const token = c.req.header('authorization');
+
+    if (!token) return errors.unauthorized();
+
+    const user = await verify(token);
+
+    if (!user) return errors.forbidden();
+
     c.set('user', user);
 
     return next();
   },
-  {
-    errors: {
-      401: 'No token was sent',
-      403: 'The token was refused',
-    },
-  },
-);
+});
 ```
 
-`createApp` runs its handler like any other, and adds its errors to every route
-in `routes`, records and routers alike, since each runs after it. A route that
-declares one of the same statuses keeps its own description. The 500 is
-`onError`'s, so a middleware can't declare it. The errors are for the document
-only: a front end gets a non-OK response as an error carrying its status.
+Returning an error ends the request there. Its errors are checked against what
+the handler returns, as a route's are, and added to every route in the document,
+since each runs after it. A route that declares one of the same statuses keeps
+its own description. `defineMiddleware` is a function only so the handler can be
+typed from its errors; `Middleware` is what it gives.
 
-A middleware that only sets something, such as `database`, is a plain handler,
-and adds no errors. `createMiddleware` is Hono's, typed by the registered
-variables, for one written on its own.
+A middleware that only sets something, such as `database`, is a plain Hono
+handler in the list, and adds no errors.
 
 ## Variables
 
@@ -166,11 +266,11 @@ declare module '@arsw/kiln' {
 }
 ```
 
-Every route, router and middleware reads them from there, so none takes a type
-argument: `c.var.user` is a `User`, and `c.var.role`, never registered, is a
-type error. With nothing registered, a request carries none. The app's
-`src/main.ts` references the file, so anything that type-checks the app's type,
-such as a front end's typed client, has them too:
+Every route and middleware reads them from there, so none takes a type argument:
+`c.var.user` is a `User`, and `c.var.role`, never registered, is a type error.
+With nothing registered, a request carries none. The app's `src/main.ts`
+references the file, so anything that type-checks the app's type, such as a
+front end's typed client, has them too:
 
 ```ts
 // src/main.ts
@@ -184,27 +284,34 @@ every API, those without a database too. Its bindings are typed by
 `Cloudflare.Env`, which `wrangler types` writes. `AppEnv` is the env every
 handler sees, for a function that takes a context.
 
-## Access
+## Policy
 
 An API can have more than one kind of caller, and not every caller may use every
-route. A route says who may call it, with `access`, and the app checks that
-before the route runs. The type of the rule is declared once, beside the
-variables:
+route. Each route says who may call it, with `policy`, and the app enforces that
+before the route runs. The policy's type is registered beside the variables:
 
 ```ts
 // src/kiln.d.ts
 declare module '@arsw/kiln' {
   interface Register {
     variables: {
-      caller: Caller;
+      user: User;
     };
-    access: 'read' | 'write';
+    policy: {
+      guests: 'none' | 'read' | 'write';
+    };
   }
 }
 ```
 
-Without it, a route can't set `access`. A route sets it as one of its fields,
-and Kiln never reads what it means:
+It's written to the document, so it's JSON: strings, numbers, booleans, `null`,
+and arrays and plain objects of those. Registering anything else is a type
+error.
+
+**Kiln never reads what a policy means.** It could as well be a rate tier or an
+audit flag: Kiln only passes each route's own to `enforce`, and writes it to the
+document. Once one is registered, every route gives its policy, and one that
+leaves it out is a type error, so no route is open by default:
 
 ```ts
 const createTodo = defineRoute({
@@ -214,126 +321,69 @@ const createTodo = defineRoute({
   status: 201,
   response: todosModel.readSchema,
   description: 'Todo created',
-  access: 'write',
+  policy: {
+    guests: 'none',
+  },
   handler: async (c) =>
     c.json(await todosOps.create(c.var.db, c.req.valid('json')), 201),
 });
 ```
 
-`defineAuthorize(check, { errors })` reads it, and declares the errors it
-answers with, as a middleware does. `check(c, access)` gets the route's
-`access`, or `undefined` for a route that sets none, so a route that says
-nothing can be refused rather than allowed by default. It may be async, and it
-refuses by throwing an `HttpError`:
+`createApp`'s `policy` enforces it, and is needed once one is registered. Its
+errors are declared by name, and `enforce(c, policy, errors)` gets the route's
+own policy, never `undefined`, and a function for each error. It may be async,
+and it refuses by returning an error; returning nothing lets the route run:
 
 ```ts
-import { Forbidden, defineAuthorize } from '@arsw/kiln';
-
-// A guest may only read: a route that writes, or says nothing, is for members
-const byCaller = defineAuthorize(
-  (c, access) => {
-    if (c.var.caller.kind === 'guest' && access !== 'read') {
-      throw new Forbidden('Guests may only read');
-    }
-  },
-  {
-    errors: {
-      403: 'The caller may not call this route',
-    },
-  },
-);
-
 export default createApp({
   middleware: [signedIn],
-  authorize: byCaller,
+  policy: {
+    errors: {
+      forbidden: 'The caller may not call this route',
+    },
+    enforce: (c, policy, errors) => {
+      if (c.var.user.kind === 'guest' && policy.guests === 'none') {
+        return errors.forbidden('Guests may not do this');
+      }
+
+      return undefined;
+    },
+  },
   routes: {
     '/todos': todosRoutes,
   },
 });
 ```
 
-`createApp` runs the check for every route in a record, after the middleware, so
-`c.var` has what they set, and before the route validates its request, so a
-refused caller gets the refusal, never a 422 that shows the route's schema. Its
-errors are added to each of those routes in the document. A route's own
-description of a status wins over the check's, and the check's over a
-middleware's.
-
-A router given in `routes` isn't checked and doesn't get the errors: its routes
-are its own, and it guards them itself.
-
-## Errors
-
-Every error is JSON with a `message`:
-
-- **404**, `Not Found`, for a path no route has.
-- **An `HttpError`**, thrown by a handler or an operation, with its own status
-  and message: `Unauthorized` (401), `Forbidden` (403), `NotFound` (404) and
-  `Conflict` (409), or a class of an API's own, which names its status once:
-
-  ```ts
-  class Gone extends HttpError {
-    override name = 'Gone';
-    readonly status = 410;
-  }
-
-  throw new Gone('Todo was archived');
-  ```
-
-  Its status is any client or server error but 422, whose body has its issues.
-  The route that throws it declares the status in its `errors`.
-
-- **422**, `Invalid Request`, with `issues`: each one's `in` (`body`, `path`,
-  `query`, … in OpenAPI's words), its `path` (`dueDate`, `tags.0`) and
-  `message`. An unknown key is an issue of its own, at its own path.
-- **An `HTTPException`**, Hono's, with its own status and message.
-- **500** for anything else, `Internal Server Error`. The error itself is
-  logged, never sent, as one object, so Workers Logs can filter on each field:
-  `error` (its `name`, `message` and `stack`), `method`, `path` (without the
-  query) and `rayId` (the `cf-ray` header). Nothing of the body or of who sent
-  the request: a log must not carry personal data.
-
-## Routes on a router
-
-For anything a route can't say, a path takes a router instead of a record:
-`createRouter()`, an `OpenAPIHono` whose routes are zod-openapi's or Hono's own,
-and which answers a request its schemas refuse with the same 422. A route there
-declares every response itself, with Kiln's pieces: `json(schema, description)`
-for a JSON response, `errors({ 404: 'Cannot find todo' })` for its own errors,
-and the responses `defineRoute` adds, `serverError` (the 500), `invalidRequest`
-(the 422), `malformedBody` (the 400) and `unsupportedBody` (the 415):
+Its errors are checked against what `enforce` returns, as a route's are. A
+policy can be written inline, as here, or in a file of its own with
+`definePolicy`, which takes the same object, checks it the same way, and gives
+what `createApp`'s `policy` takes:
 
 ```ts
-const todosRouter = createRouter().openapi(
-  createRoute({
-    method: 'get',
-    path: '/{id}',
-    request: {
-      params: todosModel.paramsSchema,
-    },
-    responses: {
-      200: json(todosModel.readSchema, 'One todo'),
-      ...errors({
-        404: 'Cannot find todo',
-      }),
-      ...invalidRequest,
-      ...serverError,
-    },
-  }),
-  async (c) =>
-    c.json(await todosOps.get(c.var.db, c.req.valid('param').id), 200),
-);
+// src/policy.ts
+import { definePolicy } from '@arsw/kiln';
+
+const guestsPolicy = definePolicy({
+  errors: {
+    forbidden: 'The caller may not call this route',
+  },
+  enforce: (c, policy, errors) =>
+    c.var.user.kind === 'guest' && policy.guests === 'none'
+      ? errors.forbidden('Guests may not do this')
+      : undefined,
+});
 ```
 
-Each status stays a key of its own, so the handler's `c.json(body, 404)` is
-typed against it, and a client sees the body. `errorSchema` and `invalidSchema`
-describe the errors' bodies. A middleware's errors reach a router's routes too.
+It runs for every route, after the middleware, so `c.var` has what they set, and
+before the route validates its request, so a refused caller gets the refusal,
+never a 422 that shows the route's schema. Its errors are added to every route
+in the document: a route's own description of a status wins over the policy's,
+and the policy's over a middleware's. Each operation in the document carries its
+route's policy as declared, as `x-policy`.
 
-An app with no `routes` can have middleware and routers chained onto it,
-`createApp().use(handler).route('/', router)`, but a middleware's errors reach
-only the routes given in `routes`. What `createApp` and `createRouter` return, a
-`Router`, keeps `openapi` after `.use()`, where `OpenAPIHono`'s own type would
-return a plain `Hono`.
+With no policy registered, a route can't give one, `createApp` takes none, and
+no operation has `x-policy`.
 
 ## The model
 
@@ -392,25 +442,35 @@ timestamps in UTC, set by the database). A model gives:
 
 ## The document
 
-From `@arsw/kiln/document`, in Node only, since it writes with `node:fs`, which
-the core never imports. `writeDocument` writes an app's OpenAPI 3.1 document to
-a file, indented and ending in a newline, to commit beside the API rather than
-serve it:
+The app carries what its document says about it, `createApp`'s
+`document: { title, version }`, and `kiln`, the package's command, writes it. In
+Node only: it loads the app, which the core never does.
 
-```ts
-// scripts/openapi.ts
-import { writeDocument } from '@arsw/kiln/document';
-
-import app from '#/main.ts';
-
-await writeDocument(app, {
-  title: 'Todos API',
-  version: '1.0.0',
-  file: new URL('../docs/openapi.json', import.meta.url),
-});
+```sh
+kiln document
 ```
 
-`file` is a path or a URL.
+loads the API's app, the default export of `src/main.ts` unless `--entry` says
+otherwise, and writes its OpenAPI 3.1 document to `docs/openapi.json` unless
+`--out` says otherwise, indented and ending in a newline, to commit beside the
+API rather than serve it. An app without `document` fails, saying to add it.
+
+```sh
+kiln document --check
+```
+
+writes nothing. It fails when the file is missing or isn't the app's document,
+naming the file and listing what differs, by where it is in the document: `+`
+for what only the app's has, `-` for what only the file has, and `~` for what
+differs.
+
+As a package script, `"openapi": "kiln document"`, it serves each place the
+document is kept up to date:
+
+- **By hand**, after changing a route: `pnpm openapi`, then commit the file.
+- **A pre-commit hook** that writes it and fails if that changed it, so the
+  commit has it: `pnpm openapi && git diff --quiet -- docs/openapi.json`.
+- **CI**, which writes nothing: `pnpm openapi --check`.
 
 ## License
 
