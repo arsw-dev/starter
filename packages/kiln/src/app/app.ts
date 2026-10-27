@@ -5,6 +5,7 @@ import { toRouter } from '#/http/http.route.ts';
 import { createRouter } from '#/http/http.router.ts';
 import { errors } from '#/http/http.schemas.ts';
 
+import type { Authorize } from '#/http/http.authorize.ts';
 import type { Middleware } from '#/http/http.middleware.ts';
 import type { AnyRoute } from '#/http/http.route.ts';
 import type { Router } from '#/http/http.router.ts';
@@ -19,6 +20,9 @@ type Mounted = Record<string, AnyRoute> | OpenAPIHono<AppEnv, Schema, string>;
 
 type Options<Routes extends Record<string, Mounted>> = {
   middleware?: (MiddlewareHandler<AppEnv> | Middleware)[];
+  // Run before every route in a record, after the middleware. A router's
+  // routes are its own, so it never reaches them
+  authorize?: Authorize;
   routes?: Routes;
 };
 
@@ -60,6 +64,7 @@ type RoutesSchema<Routes extends Record<string, Mounted>> = [
 // before a middleware. Its variables are the ones the API registers
 const createApp = <const Routes extends Record<string, Mounted> = {}>({
   middleware = [],
+  authorize,
   routes,
 }: Options<Routes> = {}) => {
   const app = createRouter();
@@ -72,7 +77,7 @@ const createApp = <const Routes extends Record<string, Mounted> = {}>({
   for (const [path, mounted] of Object.entries(routes ?? {})) {
     app.route(
       path,
-      mounted instanceof OpenAPIHono ? mounted : toRouter(mounted),
+      mounted instanceof OpenAPIHono ? mounted : toRouter(mounted, authorize),
     );
   }
 

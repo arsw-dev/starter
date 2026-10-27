@@ -11,7 +11,8 @@ import type {
 
 // What an API declares once, for every router, route and middleware to read,
 // by adding to it: declare module '@arsw/kiln' { interface Register { … } }.
-// Its variables are every one a request carries
+// Its variables are every one a request carries, and its access is the rule a
+// route may give for who may call it
 // oxlint-disable-next-line typescript/consistent-type-definitions -- an API adds to it, which needs declaration merging, which only an interface does
 interface Register {}
 
@@ -21,6 +22,14 @@ type Variables = Register extends {
 }
   ? Registered
   : {};
+
+// The rule a route may give, which only the API's authorize reads. Nothing
+// registered, a route can't give one
+type Access = Register extends {
+  access: infer Registered;
+}
+  ? Registered
+  : never;
 
 // An app's env with the variables given. Its bindings are the Worker's own,
 // which wrangler types adds to Cloudflare.Env
@@ -46,6 +55,7 @@ type Issue = z.infer<typeof issueSchema>;
 type InvalidRequest = z.infer<typeof invalidSchema>;
 
 export type {
+  Access,
   AppEnv,
   EnvWith,
   ErrorBody,

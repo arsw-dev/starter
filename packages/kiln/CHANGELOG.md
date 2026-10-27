@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.1.1
+
+A route says who may call it, and the app checks that before the route runs.
+
+### Added
+
+- **`access` in `Register`:** the type of a route's rule, declared by an API
+  beside its variables. Without it, a route can't set `access`.
+- **`defineRoute`'s `access`:** the route's rule, which Kiln never reads.
+- **`defineAuthorize(check, { errors })`:** a check that gets each route's
+  `access`, or `undefined` for a route that sets none, and refuses by throwing
+  an `HttpError`. It may be async. `Authorize` is its type, and `Access` the
+  registered rule's.
+- **`createApp`'s `authorize`:** runs the check for every route in a record,
+  after the middleware and before the route validates its request, and adds the
+  check's errors to each of those routes in the document. A router given in
+  `routes` isn't checked.
+
 ## 0.1.0
 
 Kiln becomes a framework: an API writes only what's its own, its routes, their
