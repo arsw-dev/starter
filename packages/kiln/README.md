@@ -547,6 +547,16 @@ timestamps in UTC, set by the database). A model gives:
 `DB` is the database's type, for functions that take one; `idSchema` and
 `timestampSchema` are the schemas `id` and the timestamps use.
 
+**A field added to a model needs its migration edited.** Every field has a
+`CHECK`, and SQLite can't add one to a table, so drizzle-kit (0.31) rebuilds the
+table: it creates the new one, copies the rows across, and drops the old. Its
+copy selects the new column from the old table, which has no such column, so the
+migration fails with `no such column`. After `drizzle-kit generate`, replace the
+new column in the copy's `SELECT` with `NULL`, its default, or a backfill. A
+`when` field needs a backfill its `CHECK` accepts: for `completedOn`, a date
+wherever `done` is true (`CASE WHEN "done" = 1 THEN date("updated_at") END`),
+and `NULL` elsewhere.
+
 ## The document
 
 The app carries what its document says about it, `createApp`'s

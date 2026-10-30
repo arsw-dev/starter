@@ -999,11 +999,56 @@ describe('a paramPolicy', () => {
     handler: (c) => c.json(c.req.valid('query').view, 200),
   });
 
+  // A header, read as the validator reads it: whatever its case
+  const getMode = defineRoute({
+    method: 'get',
+    path: '/mode',
+    headers: z.object({
+      'x-mode': z.enum(['view', 'edit']).default('view'),
+    }),
+    response: z.string(),
+    description: 'The mode asked for',
+    policy: 'write',
+    paramPolicy: {
+      headers: {
+        'x-mode': {
+          view: 'read',
+        },
+      },
+    },
+    handler: (c) => c.json(c.req.valid('header')['x-mode'], 200),
+  });
+
+  // A key with capitals, which the validator matches whatever case is sent,
+  // so the policy must too
+  const getShoutedMode = defineRoute({
+    method: 'get',
+    path: '/shouted-mode',
+    headers: z.object({
+      'X-Mode': z.enum(['view', 'edit']).default('view'),
+    }),
+    response: z.string(),
+    description: 'The mode asked for, by a key with capitals',
+    policy: 'write',
+    paramPolicy: {
+      headers: {
+        'X-Mode': {
+          view: 'read',
+        },
+      },
+    },
+    handler: (c) => c.json(c.req.valid('header')['X-Mode'], 200),
+  });
+
   const routes = {
     '/items': {
       listItems,
       setPriority,
       setStatus,
+    },
+    '/': {
+      getMode,
+      getShoutedMode,
     },
   };
 
@@ -1048,6 +1093,16 @@ describe('a paramPolicy', () => {
 
   const priority = async (body: string) =>
     policiesFor(async (to) => put(to, 'reader', `/items/${id}/priority`, body));
+
+  const mode = async (path: string, headers: Record<string, string>) =>
+    policiesFor(async (to) =>
+      answer(to, path, {
+        headers: {
+          user: 'reader',
+          ...headers,
+        },
+      }),
+    );
 
   const view = async (query: string) =>
     policiesFor(async (to) =>
@@ -1236,6 +1291,36 @@ describe('a paramPolicy', () => {
     ).toEqual([['read'], ['read'], ['write'], ['write']]);
   });
 
+  it('reads a header as the validator does, whatever its case', async () => {
+    const { policed } = recorded();
+
+    expect(
+      await Promise.all([
+        mode('/mode', {}),
+        mode('/mode', {
+          'X-Mode': 'view',
+        }),
+        mode('/mode', {
+          'x-mode': 'edit',
+        }),
+        mode('/shouted-mode', {
+          'X-Mode': 'edit',
+        }),
+      ]),
+    ).toEqual([['read'], ['read'], ['write'], ['write']]);
+    expect(
+      await answer(policed, '/shouted-mode', {
+        headers: {
+          user: 'writer',
+          'x-mode': 'edit',
+        },
+      }),
+    ).toEqual({
+      status: 200,
+      body: 'edit',
+    });
+  });
+
   it('says each paramPolicy in the document, as x-param-policy', () => {
     const { paths = {} } = documentOf(recorded().policed);
 
@@ -1272,6 +1357,7 @@ describe('a paramPolicy', () => {
       }),
       body: z.object({
         priority: z.enum(['low', 'high']),
+        size: z.enum(['small', 'large']),
         title: z.string(),
         count: z.number(),
       }),
@@ -1354,8 +1440,10 @@ describe('a paramPolicy', () => {
             priority: {
               low: 'read',
             },
-            // @ts-expect-error: one parameter
-            title: {},
+            // @ts-expect-error: one parameter, though size could be named alone
+            size: {
+              small: 'read',
+            },
           },
         },
       });

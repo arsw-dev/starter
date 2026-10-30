@@ -160,6 +160,8 @@ const readParameter = async (
 ): Promise<unknown> => {
   if (location === 'params') return c.req.param(name);
 
+  // zod-validator maps each header to the schema's key whatever its case, as
+  // c.req.header(name) reads it, so the policy and the handler see one value
   if (location === 'headers') return c.req.header(name);
 
   if (location === 'query') {
