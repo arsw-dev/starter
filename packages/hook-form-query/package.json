@@ -1,6 +1,6 @@
 {
   "name": "@arsw/hook-form-query",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Forms on React Hook Form, Zod and TanStack Query: schema helpers for what a form gives, a hook that submits as a mutation, and fields from an app's own components",
   "license": "MIT",
   "repository": {

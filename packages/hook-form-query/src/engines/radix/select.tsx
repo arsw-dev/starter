@@ -18,7 +18,7 @@ type RadixSelectSpec = {
     root: ComponentType<{
       name: string;
       value: string;
-      disabled?: boolean | undefined;
+      disabled?: boolean;
       onValueChange: (value: string) => void;
       onOpenChange: (open: boolean) => void;
       children: ReactNode;
@@ -72,12 +72,21 @@ const RadixSelect = ({
   const { ref, name, value, disabled, onChange, onBlur } = field;
   const { options, placeholder, ...rest } = props;
   const isOpen = useRef(false);
+  // Given only when it's true: Radix's Select.Root typed it as boolean alone
+  // before radix-ui 1.8.0, which refuses an undefined under
+  // exactOptionalPropertyTypes
+  const disabledProp =
+    disabled === true || rest.disabled === true
+      ? {
+          disabled: true,
+        }
+      : {};
 
   return (
     <Root
       name={name}
       value={value ?? ''}
-      disabled={disabled || rest.disabled}
+      {...disabledProp}
       onValueChange={(picked) => {
         if (picked !== '') {
           onChange(picked === cleared ? '' : picked);
