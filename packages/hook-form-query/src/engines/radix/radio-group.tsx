@@ -1,5 +1,7 @@
 import { Fragment } from 'react';
 
+import { disabledWhen } from './disabled.ts';
+
 import type { ControlAria } from '#/components/form-field.tsx';
 import type { ControlArgs, Option } from '#/engines/control.ts';
 import type { ComponentType, ReactNode } from 'react';
@@ -21,7 +23,7 @@ type RadixRadioGroupSpec = {
   parts: {
     root: ComponentType<
       Bound & {
-        disabled?: boolean | undefined;
+        disabled?: boolean;
       }
     >;
     item: ComponentType<{
@@ -61,7 +63,7 @@ const RadixRadioGroup = ({
     option: Wrap = Fragment,
   } = parts;
   const { ref, name, value, disabled, onChange, onBlur } = field;
-  const { options, ...rest } = props;
+  const { options, disabled: ownDisabled, ...rest } = props;
 
   return (
     <Root
@@ -71,7 +73,7 @@ const RadixRadioGroup = ({
       aria-labelledby={labelId}
       name={name}
       value={value ?? ''}
-      disabled={disabled || rest.disabled}
+      {...disabledWhen(disabled || ownDisabled)}
       onValueChange={onChange}
       onBlur={onBlur}
     >

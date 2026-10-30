@@ -215,6 +215,11 @@ the check knows only what the engine gives it. Each part is given:
   `placeholder` shows while the field is empty and is also an item that clears
   it. It needs Radix Select 2.3.0 or later (`radix-ui` 1.5.0): before that, an
   empty field's hidden native select holds the first option's value.
+- **A Radix part the field disables** (a select's `root`, a checkbox, a switch,
+  a radio group's `root`) is given `disabled` only when it's true, never as
+  `false` or `undefined`. So Radix's own parts can be passed as they are, under
+  `exactOptionalPropertyTypes` too: before `radix-ui` 1.8.0, they type it as
+  `boolean` alone.
 - **A Radix radio group's** `item` and `label` are rendered for each option,
   inside `option` if it's given. The field's label names the group by id
   (`aria-labelledby`), with no `htmlFor`: a `div` isn't labelable.

@@ -1,5 +1,7 @@
 import { useRef } from 'react';
 
+import { disabledWhen } from './disabled.ts';
+
 import type { ControlAria } from '#/components/form-field.tsx';
 import type { ControlArgs, Option } from '#/engines/control.ts';
 import type { ComponentType, ReactNode } from 'react';
@@ -18,7 +20,7 @@ type RadixSelectSpec = {
     root: ComponentType<{
       name: string;
       value: string;
-      disabled?: boolean | undefined;
+      disabled?: boolean;
       onValueChange: (value: string) => void;
       onOpenChange: (open: boolean) => void;
       children: ReactNode;
@@ -77,7 +79,7 @@ const RadixSelect = ({
     <Root
       name={name}
       value={value ?? ''}
-      disabled={disabled || rest.disabled}
+      {...disabledWhen(disabled || rest.disabled)}
       onValueChange={(picked) => {
         if (picked !== '') {
           onChange(picked === cleared ? '' : picked);
