@@ -1,5 +1,3 @@
-import { disabledWhen } from './disabled.ts';
-
 import type { ControlAria } from '#/components/form-field.tsx';
 import type { ControlArgs } from '#/engines/control.ts';
 import type { ComponentType } from 'react';
@@ -17,7 +15,7 @@ type CheckedBound<TChecked> = ControlAria & {
 
 type CheckedPart<TChecked> = ComponentType<
   CheckedBound<TChecked> & {
-    disabled?: boolean;
+    disabled?: boolean | undefined;
   }
 >;
 
@@ -49,16 +47,15 @@ const RadixCheckbox = ({
 }: ControlArgs<RadixCheckboxSpec>) => {
   const { checkbox: Checkbox } = parts;
   const { ref, name, value, disabled, onChange, onBlur } = field;
-  const { disabled: ownDisabled, ...rest } = props;
 
   return (
     <Checkbox
-      {...rest}
+      {...props}
       {...aria}
       ref={ref}
       name={name}
       checked={value === true}
-      {...disabledWhen(disabled || ownDisabled)}
+      disabled={disabled || props.disabled}
       onCheckedChange={(checked) => {
         onChange(checked === true);
       }}
@@ -75,16 +72,15 @@ const RadixSwitch = ({
 }: ControlArgs<RadixSwitchSpec>) => {
   const { switch: Switch } = parts;
   const { ref, name, value, disabled, onChange, onBlur } = field;
-  const { disabled: ownDisabled, ...rest } = props;
 
   return (
     <Switch
-      {...rest}
+      {...props}
       {...aria}
       ref={ref}
       name={name}
       checked={value === true}
-      {...disabledWhen(disabled || ownDisabled)}
+      disabled={disabled || props.disabled}
       onCheckedChange={onChange}
       onBlur={onBlur}
     />
