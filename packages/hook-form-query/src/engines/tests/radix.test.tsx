@@ -1,5 +1,5 @@
 import { screen, waitFor } from '@testing-library/react';
-import { Checkbox, Label, RadioGroup, Select, Switch } from 'radix-ui';
+import { Label, RadioGroup, Select, Switch } from 'radix-ui';
 import { beforeEach, describe, expect, it } from 'vite-plus/test';
 
 import { createFormFactory } from '#/factory/create-form-factory.tsx';
@@ -405,54 +405,27 @@ describe('a Radix control', () => {
   });
 });
 
-// A part's props with disabled typed as boolean alone, as Radix's own were
-// before radix-ui 1.8.0: under exactOptionalPropertyTypes it takes no
-// undefined
-type StrictDisabled<TProps> = Omit<TProps, 'disabled'> & {
+// Radix's Select.Root as radix-ui before 1.8.0 types it, with disabled as
+// boolean alone: under exactOptionalPropertyTypes it takes no undefined. It
+// records each set of props it's given
+type StrictRootProps = Omit<ComponentProps<typeof Select.Root>, 'disabled'> & {
   disabled?: boolean;
 };
 
-// What each strict part was last given, by its control
-const given = new Map<string, object>();
+const given: object[] = [];
 
-const StrictSelectRoot = (
-  props: StrictDisabled<ComponentProps<typeof Select.Root>>,
-) => {
-  given.set('select', props);
+const StrictRoot = (props: StrictRootProps) => {
+  given.push(props);
 
   return <Select.Root {...props} />;
 };
 
-const StrictCheckbox = (
-  props: StrictDisabled<ComponentProps<typeof Checkbox.Root>>,
-) => {
-  given.set('checkbox', props);
-
-  return <Checkbox.Root {...props} />;
-};
-
-const StrictSwitch = (
-  props: StrictDisabled<ComponentProps<typeof Switch.Root>>,
-) => {
-  given.set('switch', props);
-
-  return <Switch.Root {...props} />;
-};
-
-const StrictRadioGroupRoot = (
-  props: StrictDisabled<ComponentProps<typeof RadioGroup.Root>>,
-) => {
-  given.set('radio-group', props);
-
-  return <RadioGroup.Root {...props} />;
-};
-
-// That each of these compiles is the type test: a part whose disabled takes no
+// That this compiles is the type test: a root whose disabled takes no
 // undefined is still one the engine can render
 const StrictFormSelect = formFactory({
   control: 'select',
   parts: {
-    root: StrictSelectRoot,
+    root: StrictRoot,
     trigger: Select.Trigger,
     value: Select.Value,
     content: SelectContent,
@@ -460,98 +433,64 @@ const StrictFormSelect = formFactory({
   },
 });
 
-const StrictFormCheckbox = formFactory({
-  control: 'checkbox',
-  parts: {
-    checkbox: StrictCheckbox,
-  },
-});
-
-const StrictFormSwitch = formFactory({
-  control: 'switch',
-  parts: {
-    switch: StrictSwitch,
-  },
-});
-
-const StrictFormRadioGroup = formFactory({
-  control: 'radio-group',
-  parts: {
-    root: StrictRadioGroupRoot,
-    item: RadioGroup.Item,
-    label: Label.Root,
-  },
-});
-
-type Own = {
-  disabled?: boolean;
-};
-
-const strictFields = (own: Own = {}) => (
-  <>
-    <StrictFormSelect<Todo>
-      name="priority"
-      label="Priority"
-      options={priorities}
-      {...own}
-    />
-    <StrictFormCheckbox<Todo> name="done" label="Done" {...own} />
-    <StrictFormSwitch<Todo> name="done" label="Finished" {...own} />
-    <StrictFormRadioGroup<Todo>
-      name="size"
-      label="Size"
-      options={sizes}
-      {...own}
-    />
-  </>
+const strictSelect = (disabled?: boolean) => (
+  <StrictFormSelect<Todo>
+    name="priority"
+    label="Priority"
+    options={priorities}
+    disabled={disabled}
+  />
 );
 
-describe('a Radix part whose disabled is boolean alone', () => {
+// The trigger, and the hidden native select a disabled field leaves out of
+// the form
+const selectControls = () => [
+  trigger('Priority'),
+  ...document.body.querySelectorAll('select'),
+];
+
+describe('a Radix select whose root types disabled as boolean alone', () => {
   beforeEach(() => {
-    given.clear();
+    given.length = 0;
   });
 
-  it("is given disabled by the field's props", () => {
-    renderForm(
-      strictFields({
-        disabled: true,
-      }),
-    );
+  it("gives its root disabled by the field's props", () => {
+    renderForm(strictSelect(true));
 
-    expect([...given.values()]).toHaveLength(4);
-    for (const props of given.values()) {
+    expect(given.length).toBeGreaterThan(0);
+    for (const props of given) {
       expect(props).toHaveProperty('disabled', true);
     }
 
-    for (const control of controls()) {
+    for (const control of selectControls()) {
       expect(control).toHaveProperty('disabled', true);
     }
   });
 
-  it("is given disabled by React Hook Form's", () => {
-    renderOwnForm(strictFields(), {
+  it("gives its root disabled by React Hook Form's", () => {
+    renderOwnForm(strictSelect(), {
       disabled: true,
     });
 
-    expect([...given.values()]).toHaveLength(4);
-    for (const props of given.values()) {
+    expect(given.length).toBeGreaterThan(0);
+    for (const props of given) {
       expect(props).toHaveProperty('disabled', true);
     }
 
-    for (const control of controls()) {
+    for (const control of selectControls()) {
       expect(control).toHaveProperty('disabled', true);
     }
   });
 
-  it('is given no disabled at all while its field is enabled', () => {
-    renderForm(strictFields());
+  it('gives its root no disabled at all while the field is enabled', () => {
+    renderForm(strictSelect());
 
-    expect([...given.values()]).toHaveLength(4);
-    for (const props of given.values()) {
+    expect(given.length).toBeGreaterThan(0);
+    for (const props of given) {
       expect(Object.hasOwn(props, 'disabled')).toBe(false);
     }
 
-    for (const control of controls()) {
+    for (const control of selectControls()) {
       expect(control.hasAttribute('disabled')).toBe(false);
     }
   });

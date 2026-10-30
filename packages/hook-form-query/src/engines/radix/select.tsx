@@ -1,7 +1,5 @@
 import { useRef } from 'react';
 
-import { disabledWhen } from './disabled.ts';
-
 import type { ControlAria } from '#/components/form-field.tsx';
 import type { ControlArgs, Option } from '#/engines/control.ts';
 import type { ComponentType, ReactNode } from 'react';
@@ -74,12 +72,21 @@ const RadixSelect = ({
   const { ref, name, value, disabled, onChange, onBlur } = field;
   const { options, placeholder, ...rest } = props;
   const isOpen = useRef(false);
+  // Given only when it's true: Radix's Select.Root typed it as boolean alone
+  // before radix-ui 1.8.0, which refuses an undefined under
+  // exactOptionalPropertyTypes
+  const disabledProp =
+    disabled === true || rest.disabled === true
+      ? {
+          disabled: true,
+        }
+      : {};
 
   return (
     <Root
       name={name}
       value={value ?? ''}
-      {...disabledWhen(disabled || rest.disabled)}
+      {...disabledProp}
       onValueChange={(picked) => {
         if (picked !== '') {
           onChange(picked === cleared ? '' : picked);

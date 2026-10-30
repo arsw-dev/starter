@@ -2,11 +2,11 @@
 
 ## 0.2.1
 
-Fixed: the Radix engine gives a select's `root`, a checkbox, a switch and a
-radio group's `root` their `disabled` only when it's true. Radix's own parts,
-which type it as `boolean` alone before `radix-ui` 1.8.0, were refused as parts
-under `exactOptionalPropertyTypes`, and now pass as they are. A part that takes
-`undefined` too still does, and a disabled field is still disabled.
+Fixed: the Radix engine gives a select's `root` its `disabled` only when it's
+true. Radix's own `Select.Root`, which types it as `boolean` alone before
+`radix-ui` 1.8.0, was refused as the `root` under `exactOptionalPropertyTypes`,
+and now passes as it is. A root that takes `undefined` too still does, and a
+disabled field is still disabled.
 
 ## 0.2.0
 
