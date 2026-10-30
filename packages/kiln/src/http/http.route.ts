@@ -1,6 +1,7 @@
 import { z } from '@hono/zod-openapi';
 
 import { toErrors } from './http.errors.ts';
+import { toByParam, toDocumented } from './http.param-policy.ts';
 import { toPolicyMiddleware } from './http.policy.ts';
 import { createRouter } from './http.router.ts';
 import {
@@ -17,6 +18,7 @@ import type {
   KilnErrorName,
   StatusOf,
 } from './http.errors.ts';
+import type { ByParam, ParamPolicy } from './http.param-policy.ts';
 import type { AnyPolicy } from './http.policy.ts';
 import type { ErrorDeclaration, invalidSchema } from './http.schemas.ts';
 import type { AppEnv, Policy } from './http.types.ts';
@@ -121,13 +123,16 @@ type KilnNameOf<Body> =
   | KilnErrorName
   | (Body extends BodyInput ? 'badRequest' | 'unsupportedMediaType' : never);
 
-// A route's policy, with a policy registered and only then
-type PolicyField<Given> = [Given] extends [never]
+// A route's policy, with a policy registered and only then, and its
+// paramPolicy, the policy for some values of one parameter
+type PolicyField<Given, ByParamGiven = never> = [Given] extends [never]
   ? {
       policy?: never;
+      paramPolicy?: never;
     }
   : {
       policy: Given;
+      paramPolicy?: ByParamGiven;
     };
 
 // What zod-openapi lets a route's handler see
@@ -147,6 +152,7 @@ type Route<Config extends RouteConfig = RouteConfig> = {
   route: Config;
   handler: (c: ContextOf<Config>) => ResponseOf<Config>;
   policy?: Policy;
+  byParam?: ByParam;
 };
 
 // Any route, whatever its handler: a handler is typed by its own route, so
@@ -155,6 +161,7 @@ type AnyRoute = {
   route: RouteConfig;
   handler: unknown;
   policy?: Policy;
+  byParam?: ByParam;
 };
 
 type RouteOf<
@@ -248,7 +255,10 @@ const defineRoute = <
       >,
       errors: Errors<Names>,
     ) => Return;
-  } & PolicyField<Policy> &
+  } & PolicyField<
+    Policy,
+    NoInfer<ParamPolicy<Params, Query, Headers, BodySchema<Body>, Policy>>
+  > &
     (Status extends ContentlessStatusCode
       ? {
           response?: never;
@@ -267,6 +277,7 @@ const defineRoute = <
     description,
     errors: declared = {},
     policy,
+    paramPolicy,
     handler,
   } = config;
   // Only the schemas given: zod-openapi validates and documents each one there
@@ -300,6 +311,18 @@ const defineRoute = <
     RouteOf<Method, Path, Params, Query, Headers, Body, Status, Response, Names>
   >['handler'] = (c) => handler(c, toErrors(c, declared));
 
+  // Read once, here: a paramPolicy is checked, and its parameter's schema
+  // found, when the route is defined, never per request
+  const byParam =
+    paramPolicy === undefined
+      ? undefined
+      : toByParam(paramPolicy, {
+          params,
+          query,
+          headers,
+          body: body && toBody(body).content['application/json'].schema,
+        });
+
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the route built from config, typed by config's own type parameters, which TypeScript can't follow through the object built
   return {
     route,
@@ -308,6 +331,11 @@ const defineRoute = <
       ? {}
       : {
           policy,
+        }),
+    ...(byParam === undefined
+      ? {}
+      : {
+          byParam,
         }),
   } as Route<
     RouteOf<Method, Path, Params, Query, Headers, Body, Status, Response, Names>
@@ -327,10 +355,11 @@ type RecordRouter<Routes extends Record<string, AnyRoute>> = ReturnType<
 
 // A route as a record registers it: under its key, and with a policy, enforced
 // before its validators, declaring enforce's errors beside its own, which win,
-// and saying the route's policy in the document
+// and saying the route's policy in the document, and its paramPolicy if it has
+// one
 const toRegistered = (
   operationId: string,
-  { route, policy }: AnyRoute,
+  { route, policy, byParam }: AnyRoute,
   enforced?: AnyPolicy,
 ): RouteConfig =>
   enforced && policy !== undefined
@@ -338,7 +367,12 @@ const toRegistered = (
         ...route,
         operationId,
         'x-policy': policy,
-        middleware: toPolicyMiddleware(enforced, policy),
+        ...(byParam === undefined
+          ? {}
+          : {
+              'x-param-policy': toDocumented(byParam),
+            }),
+        middleware: toPolicyMiddleware(enforced, policy, byParam),
         responses: {
           ...toResponses(enforced.errors ?? {}),
           ...route.responses,

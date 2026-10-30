@@ -130,6 +130,23 @@ const oneOf = <TSchema extends z.ZodType>(
   rule: (schema) => schema,
 });
 
+// How a CHECK spells a value: Drizzle stores a boolean as 1 or 0
+const toLiteral = (value: string | boolean) => {
+  if (typeof value === 'boolean') return value ? '1' : '0';
+
+  return quote(value);
+};
+
+// A rule across two columns: one has a value exactly when the other has one of
+// some values. The other is never NULL, so IN is true or false, never the NULL
+// a CHECK lets through. Constants, never input, as oneOf's
+const presentWhen = (
+  column: SQLWrapper,
+  other: SQLWrapper,
+  values: readonly (string | boolean)[],
+) =>
+  sql`(${other} IN ${sql.raw(`(${values.map(toLiteral).join(', ')})`)}) = (${column} IS NOT NULL)`;
+
 // date() rewrites a valid date to itself and anything else to another date or
 // NULL, so `IS` (NULL = x is NULL, which a CHECK lets through)
 const isDate: Constraint<z.ZodISODate> = {
@@ -180,6 +197,7 @@ export {
   maxLength,
   notBlank,
   oneOf,
+  presentWhen,
   trimmed,
 };
 export type { Constraint };

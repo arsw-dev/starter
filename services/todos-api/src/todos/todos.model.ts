@@ -25,6 +25,13 @@ const todosModel = defineModel('todos', (field) => ({
     optional: true,
     access: 'all',
   }),
+  // Set by the update that makes a todo done, never sent
+  completedOn: field.date({
+    when: {
+      done: true,
+    },
+    access: ['read'],
+  }),
 }));
 
 // drizzle-kit only finds a table exported on its own

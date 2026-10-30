@@ -122,6 +122,13 @@
                       ],
                       "format": "date"
                     },
+                    "completedOn": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date"
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -138,6 +145,7 @@
                     "priority",
                     "estimate",
                     "dueDate",
+                    "completedOn",
                     "createdAt",
                     "updatedAt"
                   ]
@@ -277,6 +285,13 @@
                       ],
                       "format": "date"
                     },
+                    "completedOn": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date"
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -293,6 +308,7 @@
                     "priority",
                     "estimate",
                     "dueDate",
+                    "completedOn",
                     "createdAt",
                     "updatedAt"
                   ]
@@ -449,6 +465,13 @@
                         ],
                         "format": "date"
                       },
+                      "completedOn": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "format": "date"
+                      },
                       "createdAt": {
                         "type": "string",
                         "format": "date-time"
@@ -465,6 +488,7 @@
                       "priority",
                       "estimate",
                       "dueDate",
+                      "completedOn",
                       "createdAt",
                       "updatedAt"
                     ]
@@ -573,6 +597,13 @@
                       ],
                       "format": "date"
                     },
+                    "completedOn": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date"
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -589,6 +620,7 @@
                     "priority",
                     "estimate",
                     "dueDate",
+                    "completedOn",
                     "createdAt",
                     "updatedAt"
                   ]

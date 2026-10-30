@@ -382,8 +382,76 @@ in the document: a route's own description of a status wins over the policy's,
 and the policy's over a middleware's. Each operation in the document carries its
 route's policy as declared, as `x-policy`.
 
-With no policy registered, a route can't give one, `createApp` takes none, and
-no operation has `x-policy`.
+### A policy by parameter
+
+Some routes need the policy to depend on what the caller sends: guests may set a
+todo's priority to `low`, but only members may raise it. `paramPolicy` gives the
+policy for some values of one parameter, and the route's `policy` holds for
+every other:
+
+```ts
+const setPriority = defineRoute({
+  method: 'put',
+  path: '/{id}/priority',
+  params: todosModel.paramsSchema,
+  body: prioritySchema,
+  response: todosModel.readSchema,
+  description: 'Priority set',
+  policy: {
+    guests: 'none',
+  },
+  paramPolicy: {
+    body: {
+      priority: {
+        low: {
+          guests: 'write',
+        },
+      },
+    },
+  },
+  handler: async (c, errors) => {
+    // …
+  },
+});
+```
+
+It names one location (`params`, `query`, `headers` or `body`), one parameter of
+the route's own schema there, and some of that parameter's values, each with its
+policy. The parameter's values are string literals: an enum, a literal, or a
+discriminated union's discriminator, whose values its options give. Any other
+parameter, a value it can't take, a second parameter or a second location is a
+type error. Like `policy`, it's there only when a policy is registered.
+
+Before the route validates its request:
+
+1. Kiln reads that one parameter, from the path, the query, the headers or the
+   JSON body, and parses it with its own schema, so an omitted one with a
+   default reads as its default.
+2. A value the cases list gives that case's policy. Any other value, a missing
+   or malformed one, or a body that isn't JSON, gives the route's `policy`.
+3. `enforce` runs once, with that policy. A refusal answers then, so a refused
+   caller never sees a 422.
+4. The route's validators run as they would without it. The body is read once
+   and cached, so they validate the same body.
+
+Each operation with one carries it in the document beside `x-policy`, as
+`x-param-policy`, with the parameter's location in OpenAPI's words (`path`,
+`query`, `header`, `body`):
+
+```json
+{
+  "in": "body",
+  "name": "priority",
+  "cases": {
+    "low": {
+      "guests": "write"
+    }
+  }
+}
+```
+
+With no policy registered, a route can't give `policy` or `paramPolicy`,
+`createApp` takes none, and no operation has `x-policy`.
 
 ## The model
 
@@ -425,6 +493,45 @@ NULL), `default`, and `access`: `'all'`, or which of `read`, `create` and
 `update` the field is part of. Every rule is both a `CHECK` on the column, so a
 write that bypasses the API can't break it, and a rule in the schema, so the API
 answers a 422 before the database would fail with a 500.
+
+A field can depend on another with `when`: it has a value exactly when the other
+field has one of some values, and is NULL otherwise.
+
+```ts
+const todosModel = defineModel('todos', (field) => ({
+  done: field.boolean({
+    default: false,
+    access: ['read', 'update'],
+  }),
+  completedOn: field.date({
+    when: {
+      done: true,
+    },
+    access: ['read'],
+  }),
+}));
+```
+
+`when` names one other field of the same model, an `enum` or a `boolean` that
+isn't `optional`, and a value it can take, or a list of them
+(`when: { status: ['closed', 'archived'] }`). Anything else is a type error, as
+are `optional` and `default` beside it: the field allows NULL, and has no value
+until the condition holds. It's held in both places, as every rule is:
+
+- **A `CHECK`,** `completed_on_when_done`:
+  `("done" IN (1)) = ("completed_on" IS NOT NULL)`. The field's own constraints
+  still apply when it has a value.
+- **`createSchema`** checks it on the whole request, with the other field's
+  default when it isn't sent, and answers on the field's path: "Completed on is
+  required when done is true", or "Completed on must be empty unless done is
+  true". Only when the field is part of a create: one a create can't send (as
+  here) is the operation's to set.
+- **`updateSchema` doesn't check it.** An update may send half the pair, `done`
+  without `completedOn`, and only the row has the other half, so the `CHECK` is
+  what holds there: the operation that makes a todo done sets `completedOn` in
+  the same write.
+
+`readSchema` has the field nullable, as any optional field.
 
 Every model also has `pk` (an integer key, for joins, that never leaves the
 database), `id` (a v4 uuid, for clients), and `createdAt` and `updatedAt` (ISO
