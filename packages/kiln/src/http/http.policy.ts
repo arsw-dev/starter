@@ -1,4 +1,5 @@
 import { toAnswer, toErrors } from './http.errors.ts';
+import { choosePolicy } from './http.param-policy.ts';
 
 import type {
   Declaration,
@@ -9,6 +10,7 @@ import type {
   KilnErrorName,
   StatusOf,
 } from './http.errors.ts';
+import type { ByParam } from './http.param-policy.ts';
 import type { AppEnv, Policy } from './http.types.ts';
 import type { Context, MiddlewareHandler } from 'hono';
 
@@ -84,14 +86,18 @@ type AnyPolicy = {
 };
 
 // enforce for one route, as the middleware zod-openapi runs before the route's
-// validators, so a refused caller never learns the route's schema
+// validators, so a refused caller never learns the route's schema. With a
+// paramPolicy, its parameter picks the policy first, and enforce still runs
+// once
 const toPolicyMiddleware =
   (
     { errors = {}, enforce }: AnyPolicy,
     policy: Policy,
+    byParam?: ByParam,
   ): MiddlewareHandler<AppEnv> =>
   async (c, next) => {
-    const refusal = toAnswer(await enforce(c, policy, toErrors(c, errors)));
+    const chosen = byParam ? await choosePolicy(c, byParam, policy) : policy;
+    const refusal = toAnswer(await enforce(c, chosen, toErrors(c, errors)));
 
     return refusal ?? next();
   };

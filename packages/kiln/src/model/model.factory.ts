@@ -2,11 +2,16 @@ import { z } from '@hono/zod-openapi';
 import { getTableColumns, sql } from 'drizzle-orm';
 import { check, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
-import { TIMESTAMP_FORMAT, isTimestamp, isUuid } from './model.constraints.ts';
+import {
+  TIMESTAMP_FORMAT,
+  isTimestamp,
+  isUuid,
+  presentWhen,
+} from './model.constraints.ts';
 import { field } from './model.fields.ts';
 
 import type { Constraint } from './model.constraints.ts';
-import type { Access, FieldOptions } from './model.fields.ts';
+import type { Access, FieldOptions, When, WhenValue } from './model.fields.ts';
 import type { BuildColumns, HasDefault, NotNull } from 'drizzle-orm';
 import type {
   SQLiteColumnBuilderBase,
@@ -35,13 +40,21 @@ type Fields = Record<string, AnyField> & {
   [K in Reserved]?: never;
 };
 
-// What a column becomes once `optional` and `default` are applied, as Drizzle
-// types it
-type Nullable<TBuilder extends SQLiteColumnBuilderBase, O> = O extends {
+// A field with `when` is NULL whenever its condition is false
+type IsOptional<O> = O extends {
   optional: true;
 }
-  ? TBuilder
-  : NotNull<TBuilder>;
+  ? true
+  : O extends {
+        when: When;
+      }
+    ? true
+    : false;
+
+// What a column becomes once `optional` and `default` are applied, as Drizzle
+// types it
+type Nullable<TBuilder extends SQLiteColumnBuilderBase, O> =
+  IsOptional<O> extends true ? TBuilder : NotNull<TBuilder>;
 
 type Column<TBuilder extends SQLiteColumnBuilderBase, O> = O extends {
   default: unknown;
@@ -53,13 +66,51 @@ type Builders<F extends Fields> = {
   [K in keyof F]: Column<ReturnType<F[K]['column']>, F[K]['options']>;
 };
 
-type IsOptional<O> = O extends {
-  optional: true;
-}
-  ? true
-  : false;
-
 type Schema<F extends Fields, K extends keyof F> = ReturnType<F[K]['schema']>;
+
+// The fields a `when` can name: an enum or a boolean that's never NULL, since
+// a NULL would let the CHECK pass whatever the field holds
+type WhenTarget<F extends Fields> = {
+  [K in keyof F]: IsOptional<F[K]['options']> extends true
+    ? never
+    : Schema<F, K> extends z.ZodBoolean | z.ZodEnum
+      ? K
+      : never;
+}[keyof F];
+
+// What a `when` that names one field may give for it: a value it can take, or
+// a list of them
+type WhenValues<F extends Fields, K extends keyof F> =
+  | z.output<Schema<F, K>>
+  | readonly [z.output<Schema<F, K>>, ...z.output<Schema<F, K>>[]];
+
+// What a field's `when` must be, given the one it has: exactly one key, a
+// field it can name, and what that field can hold. Anything else is never
+type WhenRule<F extends Fields, W> = [keyof W] extends [never]
+  ? {
+      'when names one other field': never;
+    }
+  : {
+      [Other in keyof W]: [Exclude<keyof W, Other>] extends [never]
+        ? Other extends WhenTarget<F>
+          ? WhenValues<F, Other>
+          : never
+        : never;
+    };
+
+// The fields, with each `when` held to its rule, for defineModel to check what
+// define returns against. Fields without one are left as they are
+type CheckedFields<F extends Fields> = {
+  [K in Exclude<keyof F, Reserved>]: F[K]['options'] extends {
+    when: infer W;
+  }
+    ? {
+        options: {
+          when: WhenRule<F, W>;
+        };
+      }
+    : unknown;
+};
 
 // Keys whose field allows an access
 type KeysWith<F extends Fields, A extends Access> = {
@@ -102,6 +153,9 @@ type ModelOptions = {
 const has = (options: FieldOptions<unknown>, access: Access) =>
   options.access === 'all' || options.access.includes(access);
 
+const isOptional = (options: FieldOptions<unknown>) =>
+  options.optional === true || options.when !== undefined;
+
 // The one place the factory asserts a type: TypeScript can't type an object
 // built from entries as a mapped type, so the type tests check each shape
 /* oxlint-disable typescript/no-unsafe-type-assertion, typescript/no-unnecessary-type-parameters -- an object built from entries, checked by the type tests */
@@ -133,7 +187,7 @@ const toColumnName = (casing: Casing, key: string) =>
     : key.replaceAll(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 
 const withOptions = (builder: Builder, options: FieldOptions<unknown>) => {
-  const nullable = options.optional ? builder : builder.notNull();
+  const nullable = isOptional(options) ? builder : builder.notNull();
 
   return options.default === undefined
     ? nullable
@@ -176,6 +230,74 @@ const toCheck = (
     optional ? sql`${column} IS NULL OR (${rule})` : rule,
   );
 };
+
+// A `when` as its one field and its values, a single value as a list of one
+const whenOf = (when: When) => {
+  const [[other, given] = ['', []]] = Object.entries(when);
+  const values: readonly WhenValue[] = Array.isArray(given) ? given : [given];
+
+  return {
+    other,
+    values,
+  };
+};
+
+const toWhenCheck = (name: string, otherName: string, when: When) => {
+  const { values } = whenOf(when);
+
+  return check(
+    `${name}_when_${otherName}`,
+    presentWhen(sql.identifier(name), sql.identifier(otherName), values),
+  );
+};
+
+// 'closed', 'closed or archived', 'open, closed or archived'
+const listed = (values: readonly WhenValue[]) => {
+  const words = values.map(String);
+  const last = words.pop();
+
+  return words.length === 0 ? `${last}` : `${words.join(', ')} or ${last}`;
+};
+
+// A `when` as createSchema checks it, on the whole object: the field is
+// required when the other holds one of the values, after its default, and
+// empty otherwise. Not at all when the other's value is unknown: neither sent
+// nor given a default, so only the operation knows it
+const toWhenRule =
+  (fields: Fields, key: string, when: When) =>
+  (values: Record<string, unknown>, ctx: z.RefinementCtx) => {
+    const { other, values: holding } = whenOf(when);
+    const otherValue = values[other] ?? fields[other]?.options.default;
+
+    if (otherValue === undefined) return;
+
+    const filled = values[key] !== undefined && values[key] !== null;
+    const holds = holding.some((value) => value === otherValue);
+
+    if (filled === holds) return;
+
+    const condition = `${toLabel(other).toLowerCase()} is ${listed(holding)}`;
+
+    ctx.addIssue({
+      code: 'custom',
+      input: values[key],
+      path: [key],
+      message: holds
+        ? `${toLabel(key)} is required when ${condition}`
+        : `${toLabel(key)} must be empty unless ${condition}`,
+    });
+  };
+
+// The rule runs whenever its two fields parsed, whatever else failed, so a
+// request learns of it beside its other issues, not after fixing them
+const bothParsed =
+  (key: string, when: When) => (payload: z.core.ParsePayload) => {
+    const { other } = whenOf(when);
+
+    return !payload.issues.some(
+      (issue) => issue.path?.[0] === key || issue.path?.[0] === other,
+    );
+  };
 
 // The columns every model has, around its own fields
 const baseColumns = (name: (key: string) => string) => ({
@@ -222,12 +344,13 @@ const createDefineModel = ({ casing = 'snake_case' }: ModelOptions = {}) => {
   const name = (key: string) => toColumnName(casing, key);
 
   // The fields come from a function given the field kinds, so a model needs
-  // nothing imported but defineModel
+  // nothing imported but defineModel. What it returns is checked against its
+  // own `when`s, which only the whole model can type
   const defineModel = <TName extends string, F extends Fields>(
     tableName: TName,
-    define: (kinds: typeof field) => F,
+    define: (kinds: typeof field) => F & NoInfer<CheckedFields<F>>,
   ) => {
-    const fields = define(field);
+    const fields: Fields = define(field);
 
     for (const [key, f] of Object.entries(fields)) assertDefault(key, f);
 
@@ -249,7 +372,20 @@ const createDefineModel = ({ casing = 'snake_case' }: ModelOptions = {}) => {
       () => [
         toCheck('id', isUuid),
         ...Object.entries(fields).flatMap(([key, f]) =>
-          f.constraints.map((c) => toCheck(name(key), c, f.options.optional)),
+          f.constraints.map((c) =>
+            toCheck(name(key), c, isOptional(f.options)),
+          ),
+        ),
+        ...Object.entries(fields).flatMap(([key, { options }]) =>
+          options.when === undefined
+            ? []
+            : [
+                toWhenCheck(
+                  name(key),
+                  name(whenOf(options.when).other),
+                  options.when,
+                ),
+              ],
         ),
         toCheck(name('createdAt'), isTimestamp),
         toCheck(name('updatedAt'), isTimestamp),
@@ -275,19 +411,21 @@ const createDefineModel = ({ casing = 'snake_case' }: ModelOptions = {}) => {
       ...mapFields<ReadShape<F>>(
         fields,
         (f, key) =>
-          f.options.optional ? schemaOf(f, key).nullable() : schemaOf(f, key),
+          isOptional(f.options)
+            ? schemaOf(f, key).nullable()
+            : schemaOf(f, key),
         'read',
       ),
       createdAt: timestampSchema,
       updatedAt: timestampSchema,
     });
 
-    const createSchema = z
+    const createObject = z
       .object(
         mapFields<CreateShape<F>>(
           fields,
           (f, key) => {
-            if (f.options.optional)
+            if (isOptional(f.options))
               return schemaOf(f, key).nullable().optional();
 
             return f.options.default === undefined
@@ -299,12 +437,24 @@ const createDefineModel = ({ casing = 'snake_case' }: ModelOptions = {}) => {
       )
       .strict();
 
+    // Each `when` a create can send. An update isn't checked: it may send half
+    // the pair, and only the row has the other half, so the CHECK holds there
+    const createSchema = Object.entries(fields).reduce(
+      (schema, [key, { options }]) =>
+        options.when !== undefined && has(options, 'create')
+          ? schema.superRefine(toWhenRule(fields, key, options.when), {
+              when: bothParsed(key, options.when),
+            })
+          : schema,
+      createObject,
+    );
+
     const updateSchema = z
       .object(
         mapFields<UpdateShape<F>>(
           fields,
           (f, key) =>
-            f.options.optional
+            isOptional(f.options)
               ? schemaOf(f, key).nullable().optional()
               : schemaOf(f, key).optional(),
           'update',

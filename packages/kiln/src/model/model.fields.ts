@@ -21,14 +21,32 @@ import type { Constraint } from './model.constraints.ts';
 
 type Access = 'read' | 'create' | 'update';
 
-// What every kind of field takes
+// A value a `when` can name: an enum's or a boolean's
+type WhenValue = string | boolean;
+
+// The other field a field depends on, and the value, or values, it has a value
+// for. Which field and which values defineModel checks, since only the model
+// knows its fields
+type When = Readonly<Record<string, WhenValue | readonly WhenValue[]>>;
+
+// What every kind of field takes. `when` makes the field NULL unless another
+// field has one of some values, so it can't also be optional or have a default
 type FieldOptions<TValue> = {
-  optional?: boolean;
-  default?: TValue;
   // Who sees the field: `'all'`, or the uses listed. Required, so a field is
   // closed until it says otherwise
   access: 'all' | readonly Access[];
-};
+} & (
+  | {
+      optional?: boolean;
+      default?: TValue;
+      when?: never;
+    }
+  | {
+      when: When;
+      optional?: never;
+      default?: never;
+    }
+);
 
 // A field's column and its schema come from one list of constraints, each a
 // CHECK on the one and a rule on the other, so the two can't drift. The column
@@ -211,4 +229,4 @@ const field = {
 };
 
 export { field };
-export type { Access, Field, FieldOptions };
+export type { Access, Field, FieldOptions, When, WhenValue };

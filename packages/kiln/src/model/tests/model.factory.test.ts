@@ -41,6 +41,31 @@ const todos = defineModel('todos', (field) => ({
   }),
 }));
 
+// A field that depends on another, on each kind a `when` can name: an enum,
+// with a list of values, and a boolean, with one
+const tickets = defineModel('tickets', (field) => ({
+  status: field.enum(['open', 'closed', 'archived'], {
+    default: 'open',
+    access: 'all',
+  }),
+  closedReason: field.text({
+    when: {
+      status: ['closed', 'archived'],
+    },
+    access: 'all',
+  }),
+  done: field.boolean({
+    default: false,
+    access: 'all',
+  }),
+  doneOn: field.date({
+    when: {
+      done: true,
+    },
+    access: 'all',
+  }),
+}));
+
 const dialect = new SQLiteSyncDialect();
 
 const checksOf = (table: SQLiteTable) =>
@@ -60,6 +85,22 @@ const passes = async (checkSql: string, column: string, value: unknown) => {
     }>();
 
   return row?.ok !== 0;
+};
+
+// Whether a CHECK lets a row through, its columns given by name
+const passesRow = async (checkSql: string, row: Record<string, unknown>) => {
+  const columns = Object.keys(row)
+    .map((column) => `? AS "${column}"`)
+    .join(', ');
+  const result = await env.DB.prepare(
+    `SELECT (${checkSql}) AS ok FROM (SELECT ${columns})`,
+  )
+    .bind(...Object.values(row))
+    .first<{
+      ok: number | null;
+    }>();
+
+  return result?.ok !== 0;
 };
 
 describe('types', () => {
@@ -117,6 +158,123 @@ describe('types', () => {
       estimate?: number | null | undefined;
       dueDate?: string | null | undefined;
     }>();
+  });
+
+  it('types a field with when as an optional one', () => {
+    expectTypeOf<z.infer<typeof tickets.readSchema>>().toEqualTypeOf<{
+      id: string;
+      status: 'open' | 'closed' | 'archived';
+      closedReason: string | null;
+      done: boolean;
+      doneOn: string | null;
+      createdAt: string;
+      updatedAt: string;
+    }>();
+    expectTypeOf<
+      z.infer<typeof tickets.createSchema>['closedReason']
+    >().toEqualTypeOf<string | null | undefined>();
+    expectTypeOf<(typeof tickets.table.$inferSelect)['doneOn']>().toEqualTypeOf<
+      string | null
+    >();
+  });
+
+  it('refuses a when that names anything but one enum or boolean that is never NULL', () => {
+    defineModel('refused', (field) => ({
+      done: field.boolean({
+        default: false,
+        access: [],
+      }),
+      maybe: field.boolean({
+        optional: true,
+        access: [],
+      }),
+      status: field.enum(['open', 'closed'], {
+        access: [],
+      }),
+      title: field.text({
+        access: [],
+      }),
+      // @ts-expect-error: no field is called finished
+      unknown: field.date({
+        when: {
+          finished: true,
+        },
+        access: [],
+      }),
+      // @ts-expect-error: status can't be pending
+      unknownValue: field.date({
+        when: {
+          status: 'pending',
+        },
+        access: [],
+      }),
+      // @ts-expect-error: nor be in a list with pending
+      unknownInList: field.date({
+        when: {
+          status: ['closed', 'pending'],
+        },
+        access: [],
+      }),
+      // @ts-expect-error: an empty list is a field never set
+      emptyList: field.date({
+        when: {
+          status: [],
+        },
+        access: [],
+      }),
+      // @ts-expect-error: a NULL in maybe would let the CHECK pass
+      optionalOther: field.date({
+        when: {
+          maybe: true,
+        },
+        access: [],
+      }),
+      // @ts-expect-error: title is text, neither an enum nor a boolean
+      otherKind: field.date({
+        when: {
+          title: 'Done',
+        },
+        access: [],
+      }),
+      // @ts-expect-error: a when names one field
+      twoKeys: field.date({
+        when: {
+          done: true,
+          status: 'closed',
+        },
+        access: [],
+      }),
+      // @ts-expect-error: and not none
+      noKeys: field.date({
+        when: {},
+        access: [],
+      }),
+    }));
+  });
+
+  it('refuses optional or a default beside when', () => {
+    defineModel('refused', (field) => ({
+      done: field.boolean({
+        default: false,
+        access: [],
+      }),
+      // @ts-expect-error: when makes it optional already
+      optional: field.date({
+        when: {
+          done: true,
+        },
+        optional: true,
+        access: [],
+      }),
+      // @ts-expect-error: and its value is NULL unless done
+      withDefault: field.date({
+        when: {
+          done: true,
+        },
+        default: '2026-01-01',
+        access: [],
+      }),
+    }));
   });
 
   it('refuses a field named like a standard column', () => {
@@ -185,6 +343,103 @@ describe('the table', () => {
       due_date: false,
       created_at: true,
     });
+  });
+
+  it('checks each when on its own, named by both columns', () => {
+    expect(
+      checksOf(tickets.table)
+        .filter((c) => c.name.includes('_when_'))
+        .map((c) => c.name),
+    ).toEqual(['closed_reason_when_status', 'done_on_when_done']);
+  });
+
+  it('refuses a value when the condition is false, and none when it is true', async () => {
+    const [closedReason, doneOn] = checksOf(tickets.table)
+      .filter((c) => c.name.includes('_when_'))
+      .map((c) => c.sql);
+
+    const rows: [string, Record<string, unknown>][] = [
+      [
+        closedReason ?? '',
+        {
+          status: 'open',
+          closed_reason: 'Fixed',
+        },
+      ],
+      [
+        closedReason ?? '',
+        {
+          status: 'open',
+          closed_reason: null,
+        },
+      ],
+      [
+        closedReason ?? '',
+        {
+          status: 'closed',
+          closed_reason: 'Fixed',
+        },
+      ],
+      [
+        closedReason ?? '',
+        {
+          status: 'archived',
+          closed_reason: 'Fixed',
+        },
+      ],
+      [
+        closedReason ?? '',
+        {
+          status: 'archived',
+          closed_reason: null,
+        },
+      ],
+      [
+        doneOn ?? '',
+        {
+          done: 0,
+          done_on: '2026-10-29',
+        },
+      ],
+      [
+        doneOn ?? '',
+        {
+          done: 0,
+          done_on: null,
+        },
+      ],
+      [
+        doneOn ?? '',
+        {
+          done: 1,
+          done_on: '2026-10-29',
+        },
+      ],
+      [
+        doneOn ?? '',
+        {
+          done: 1,
+          done_on: null,
+        },
+      ],
+    ];
+
+    expect(
+      await Promise.all(rows.map(async ([sql, row]) => passesRow(sql, row))),
+    ).toEqual([false, true, true, true, false, false, true, true, false]);
+  });
+
+  it('still checks a field with when by its own constraints, and lets NULL through them', async () => {
+    const isDate = checksOf(tickets.table).find(
+      (c) => c.name === 'done_on_is_date',
+    );
+
+    expect(
+      await Promise.all([
+        passes(isDate?.sql ?? '', 'done_on', 'tomorrow'),
+        passes(isDate?.sql ?? '', 'done_on', null),
+      ]),
+    ).toEqual([false, true]);
   });
 
   it('keeps the keys as column names when told to', () => {
@@ -273,6 +528,100 @@ describe('the schemas', () => {
         done: true,
       }).success,
     ).toBe(false);
+  });
+
+  it('refuses a create that breaks a when, on the field, the other field defaulted or sent', () => {
+    const issues = (value: unknown) =>
+      tickets.createSchema
+        .safeParse(value)
+        .error?.issues.map((issue) => [issue.path.join('.'), issue.message]);
+
+    expect([
+      issues({
+        closedReason: 'Fixed',
+      }),
+      issues({
+        status: 'closed',
+      }),
+      issues({
+        status: 'archived',
+        closedReason: null,
+      }),
+      issues({
+        done: true,
+      }),
+      issues({
+        done: false,
+        doneOn: '2026-10-29',
+      }),
+    ]).toEqual([
+      [
+        [
+          'closedReason',
+          'Closed reason must be empty unless status is closed or archived',
+        ],
+      ],
+      [
+        [
+          'closedReason',
+          'Closed reason is required when status is closed or archived',
+        ],
+      ],
+      [
+        [
+          'closedReason',
+          'Closed reason is required when status is closed or archived',
+        ],
+      ],
+      [['doneOn', 'Done on is required when done is true']],
+      [['doneOn', 'Done on must be empty unless done is true']],
+    ]);
+    expect(
+      tickets.createSchema.safeParse({
+        status: 'closed',
+        closedReason: 'Fixed',
+        done: true,
+        doneOn: '2026-10-29',
+      }).success,
+    ).toBe(true);
+  });
+
+  it("checks a when beside the request's other issues, but not on a field that failed", () => {
+    expect(
+      tickets.createSchema
+        .safeParse({
+          status: 'closed',
+          done: 'yes',
+          doneOn: 'tomorrow',
+          extra: 1,
+        })
+        .error?.issues.map((issue) => issue.path.join('.') || issue.code),
+    ).toEqual(['done', 'doneOn', 'unrecognized_keys', 'closedReason']);
+  });
+
+  it('leaves a when to the operation when a create cannot send the field', () => {
+    const notes = defineModel('notes', (field) => ({
+      pinned: field.boolean({
+        default: true,
+        access: 'all',
+      }),
+      pinnedOn: field.date({
+        when: {
+          pinned: true,
+        },
+        access: ['read'],
+      }),
+    }));
+
+    expect(notes.createSchema.safeParse({}).success).toBe(true);
+  });
+
+  it('leaves a when to the database on an update, which may send half the pair', () => {
+    expect(
+      tickets.updateSchema.safeParse({
+        done: true,
+      }).success,
+    ).toBe(true);
   });
 
   it('parses an update to exactly what was sent, with no defaults', () => {

@@ -1,9 +1,22 @@
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
 
 import { todosModel } from './todos.model.ts';
 
 import type { DB } from '@arsw/kiln/model';
 import type { z } from '@hono/zod-openapi';
+
+// A todo made done is completed today, in UTC, unless it was done already;
+// one made not done isn't completed. An update that leaves done alone leaves
+// completedOn alone too
+const completion = (done: boolean | undefined) => {
+  if (done === undefined) return {};
+
+  return {
+    completedOn: done
+      ? sql`coalesce(${todosModel.table.completedOn}, date('now'))`
+      : null,
+  };
+};
 
 // Each one returns what it found, or undefined for a todo that isn't there:
 // which error that is, the route says
@@ -32,7 +45,10 @@ const todosOps = {
   ) =>
     db
       .update(todosModel.table)
-      .set(updates)
+      .set({
+        ...updates,
+        ...completion(updates.done),
+      })
       .where(eq(todosModel.table.id, id))
       .returning(todosModel.readColumns)
       .get(),

@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.2.1
+
+A rule across two fields, and a policy that depends on what the caller sends.
+
+### Added
+
+- **`when`, on a field:** `when: { done: true }` gives the field a value exactly
+  when another field of the model, an `enum` or a `boolean` that isn't
+  `optional`, has that value, or one of a list. The field allows NULL. A `CHECK`
+  holds it (`<column>_when_<other column>`), and `createSchema` checks it on the
+  whole request, the other field's default counting, with an issue on the
+  field's path. `updateSchema` leaves it to the `CHECK`, since an update may
+  send half the pair. Naming anything else, a value the field can't take, or
+  `optional` or a `default` beside it, is a type error.
+- **`paramPolicy`, on `defineRoute`:** the policy for some values of one
+  parameter (`params`, `query`, `headers` or `body`) of the route's own schema,
+  whose values are string literals, a discriminated union's discriminator among
+  them. Before validation, Kiln reads and parses that one parameter, picks its
+  case's policy or the route's `policy`, and runs `enforce` once with it, so a
+  refused caller still never sees a 422. The document carries it beside
+  `x-policy`, as `x-param-policy`: `{ in, name, cases }`.
+
 ## 0.2.0
 
 Every response the document lists is one the code it's declared beside produces,
