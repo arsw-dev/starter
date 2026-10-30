@@ -20,7 +20,7 @@ import type { OptionsArgs } from '#/app/app.ts';
 import type { EnforceResponse, PolicyOption } from '#/http/http.policy.ts';
 import type { AppEnv, Policy, PolicyOf } from '#/http/http.types.ts';
 import type { OpenAPIHono } from '@hono/zod-openapi';
-import type { MiddlewareHandler } from 'hono';
+import type { Context, MiddlewareHandler } from 'hono';
 import type { InferResponseType } from 'hono/client';
 
 // Every route lets every caller in, for tests about anything but the policy,
@@ -911,5 +911,593 @@ describe('the policy', () => {
     > = [];
 
     void [given, none];
+  });
+});
+
+// A PUT with a body as given, raw, so it can be malformed
+const put = async (
+  to: OpenAPIHono<AppEnv>,
+  user: string,
+  path: string,
+  body: string,
+) =>
+  answer(to, path, {
+    method: 'PUT',
+    headers: {
+      user,
+      'content-type': 'application/json',
+    },
+    body,
+  });
+
+describe('a paramPolicy', () => {
+  const setPriority = defineRoute({
+    method: 'put',
+    path: '/{id}/priority',
+    params: z.object({
+      id: z.uuid(),
+    }),
+    body: z.strictObject({
+      priority: z.enum(['low', 'high']),
+    }),
+    response: z.string(),
+    description: 'Priority set',
+    policy: 'write',
+    paramPolicy: {
+      body: {
+        priority: {
+          low: 'read',
+        },
+      },
+    },
+    handler: (c) => c.json(c.req.valid('json').priority, 200),
+  });
+
+  // A discriminated union's discriminator, each option with a literal for it
+  const setStatus = defineRoute({
+    method: 'put',
+    path: '/{id}/status',
+    body: z.discriminatedUnion('status', [
+      z.strictObject({
+        status: z.literal('open'),
+      }),
+      z.strictObject({
+        status: z.literal('closed'),
+        reason: z.string(),
+      }),
+    ]),
+    response: z.string(),
+    description: 'Status set',
+    policy: 'write',
+    paramPolicy: {
+      body: {
+        status: {
+          open: 'read',
+        },
+      },
+    },
+    handler: (c) => c.json(c.req.valid('json').status, 200),
+  });
+
+  // A query parameter with a default, which an omitted one reads as
+  const listItems = defineRoute({
+    method: 'get',
+    path: '/',
+    query: z.object({
+      view: z.enum(['summary', 'full']).default('summary'),
+    }),
+    response: z.string(),
+    description: 'All items',
+    policy: 'write',
+    paramPolicy: {
+      query: {
+        view: {
+          summary: 'read',
+        },
+      },
+    },
+    handler: (c) => c.json(c.req.valid('query').view, 200),
+  });
+
+  // A header, read as the validator reads it: whatever its case
+  const getMode = defineRoute({
+    method: 'get',
+    path: '/mode',
+    headers: z.object({
+      'x-mode': z.enum(['view', 'edit']).default('view'),
+    }),
+    response: z.string(),
+    description: 'The mode asked for',
+    policy: 'write',
+    paramPolicy: {
+      headers: {
+        'x-mode': {
+          view: 'read',
+        },
+      },
+    },
+    handler: (c) => c.json(c.req.valid('header')['x-mode'], 200),
+  });
+
+  // A key with capitals, which the validator matches whatever case is sent,
+  // so the policy must too
+  const getShoutedMode = defineRoute({
+    method: 'get',
+    path: '/shouted-mode',
+    headers: z.object({
+      'X-Mode': z.enum(['view', 'edit']).default('view'),
+    }),
+    response: z.string(),
+    description: 'The mode asked for, by a key with capitals',
+    policy: 'write',
+    paramPolicy: {
+      headers: {
+        'X-Mode': {
+          view: 'read',
+        },
+      },
+    },
+    handler: (c) => c.json(c.req.valid('header')['X-Mode'], 200),
+  });
+
+  const routes = {
+    '/items': {
+      listItems,
+      setPriority,
+      setStatus,
+    },
+    '/': {
+      getMode,
+      getShoutedMode,
+    },
+  };
+
+  const id = '00000000-0000-4000-8000-000000000002';
+
+  // Only a writer may write, and enforce says which policy it was given
+  const recorded = () => {
+    const seen: Policy[] = [];
+    const policed = createApp({
+      middleware: [setUser],
+      policy: {
+        errors: {
+          forbidden: 'The caller may not call this route',
+        },
+        enforce: (c, policy, errors) => {
+          seen.push(policy);
+
+          return policy === 'write' && c.var.user !== 'writer'
+            ? errors.forbidden()
+            : undefined;
+        },
+      },
+      routes,
+    });
+
+    return {
+      seen,
+      policed,
+    };
+  };
+
+  // The policies enforce was given for one request, on an app of its own
+  const policiesFor = async (
+    request: (to: OpenAPIHono<AppEnv>) => Promise<unknown>,
+  ) => {
+    const { seen, policed } = recorded();
+
+    await request(policed);
+
+    return seen;
+  };
+
+  const priority = async (body: string) =>
+    policiesFor(async (to) => put(to, 'reader', `/items/${id}/priority`, body));
+
+  const mode = async (path: string, headers: Record<string, string>) =>
+    policiesFor(async (to) =>
+      answer(to, path, {
+        headers: {
+          user: 'reader',
+          ...headers,
+        },
+      }),
+    );
+
+  const view = async (query: string) =>
+    policiesFor(async (to) =>
+      answer(to, `/items${query}`, {
+        headers: {
+          user: 'reader',
+        },
+      }),
+    );
+
+  it("enforces a listed value's case, and the route's policy for anything else", async () => {
+    expect(
+      await Promise.all(
+        [
+          '{"priority":"low"}',
+          '{"priority":"high"}',
+          '{}',
+          '{"priority":1}',
+          '{"priority":"LOW"}',
+          '["low"]',
+          '"low"',
+          '{"priority":',
+        ].map(priority),
+      ),
+    ).toEqual([
+      ['read'],
+      ['write'],
+      ['write'],
+      ['write'],
+      ['write'],
+      ['write'],
+      ['write'],
+      ['write'],
+    ]);
+  });
+
+  it('runs enforce once per request', async () => {
+    const counts = await Promise.all(
+      [
+        async (to: OpenAPIHono<AppEnv>) =>
+          put(to, 'reader', `/items/${id}/priority`, '{"priority":"low"}'),
+        async (to: OpenAPIHono<AppEnv>) =>
+          put(to, 'writer', `/items/${id}/priority`, '{"priority":"high"}'),
+        async (to: OpenAPIHono<AppEnv>) =>
+          put(to, 'reader', `/items/${id}/priority`, '{"priority":"high"}'),
+        async (to: OpenAPIHono<AppEnv>) =>
+          put(to, 'writer', `/items/${id}/priority`, '{"priority":1}'),
+        async (to: OpenAPIHono<AppEnv>) =>
+          answer(to, '/items?view=full', {
+            headers: {
+              user: 'writer',
+            },
+          }),
+      ].map(async (request) => (await policiesFor(request)).length),
+    );
+
+    expect(counts).toEqual([1, 1, 1, 1, 1]);
+  });
+
+  it('refuses a caller before validation, and lets an allowed one reach it', async () => {
+    const { policed } = recorded();
+
+    expect(
+      await Promise.all([
+        put(
+          policed,
+          'reader',
+          `/items/${id}/priority`,
+          '{"priority":"high","extra":1}',
+        ),
+        put(
+          policed,
+          'writer',
+          `/items/${id}/priority`,
+          '{"priority":"high","extra":1}',
+        ),
+        put(
+          policed,
+          'reader',
+          `/items/${id}/priority`,
+          '{"priority":"low","extra":1}',
+        ),
+        put(
+          policed,
+          'reader',
+          '/items/not-a-uuid/priority',
+          '{"priority":"high"}',
+        ),
+        put(policed, 'reader', `/items/${id}/priority`, '{"priority":'),
+        put(policed, 'writer', `/items/${id}/priority`, '{"priority":'),
+      ]),
+    ).toMatchObject([
+      {
+        status: 403,
+      },
+      {
+        status: 422,
+      },
+      {
+        status: 422,
+      },
+      {
+        status: 403,
+      },
+      {
+        status: 403,
+      },
+      {
+        status: 400,
+      },
+    ]);
+  });
+
+  it('leaves the body for the route to validate and read', async () => {
+    const { policed } = recorded();
+
+    expect(
+      await Promise.all([
+        put(policed, 'reader', `/items/${id}/priority`, '{"priority":"low"}'),
+        put(policed, 'writer', `/items/${id}/priority`, '{"priority":"high"}'),
+      ]),
+    ).toEqual([
+      {
+        status: 200,
+        body: 'low',
+      },
+      {
+        status: 200,
+        body: 'high',
+      },
+    ]);
+  });
+
+  it("reads a discriminated union's discriminator from its options", async () => {
+    const { policed } = recorded();
+    const status = async (body: string) =>
+      policiesFor(async (to) => put(to, 'reader', `/items/${id}/status`, body));
+
+    expect(
+      await Promise.all([
+        put(policed, 'reader', `/items/${id}/status`, '{"status":"open"}'),
+        put(
+          policed,
+          'reader',
+          `/items/${id}/status`,
+          '{"status":"closed","reason":"Done"}',
+        ),
+        put(
+          policed,
+          'writer',
+          `/items/${id}/status`,
+          '{"status":"closed","reason":"Done"}',
+        ),
+      ]),
+    ).toMatchObject([
+      {
+        status: 200,
+        body: 'open',
+      },
+      {
+        status: 403,
+      },
+      {
+        status: 200,
+        body: 'closed',
+      },
+    ]);
+    expect(
+      await Promise.all(
+        [
+          '{"status":"open"}',
+          '{"status":"closed"}',
+          '{"status":"pending"}',
+        ].map(status),
+      ),
+    ).toEqual([['read'], ['write'], ['write']]);
+  });
+
+  it('reads a query parameter, its default for one left out', async () => {
+    expect(
+      await Promise.all(
+        ['', '?view=summary', '?view=full', '?view=summary&view=full'].map(
+          view,
+        ),
+      ),
+    ).toEqual([['read'], ['read'], ['write'], ['write']]);
+  });
+
+  it('reads a header as the validator does, whatever its case', async () => {
+    const { policed } = recorded();
+
+    expect(
+      await Promise.all([
+        mode('/mode', {}),
+        mode('/mode', {
+          'X-Mode': 'view',
+        }),
+        mode('/mode', {
+          'x-mode': 'edit',
+        }),
+        mode('/shouted-mode', {
+          'X-Mode': 'edit',
+        }),
+      ]),
+    ).toEqual([['read'], ['read'], ['write'], ['write']]);
+    expect(
+      await answer(policed, '/shouted-mode', {
+        headers: {
+          user: 'writer',
+          'x-mode': 'edit',
+        },
+      }),
+    ).toEqual({
+      status: 200,
+      body: 'edit',
+    });
+  });
+
+  it('says each paramPolicy in the document, as x-param-policy', () => {
+    const { paths = {} } = documentOf(recorded().policed);
+
+    expect([
+      paths['/items/{id}/priority']?.put?.['x-param-policy'],
+      paths['/items']?.get?.['x-param-policy'],
+      paths['/items']?.get?.['x-policy'],
+    ]).toEqual([
+      {
+        in: 'body',
+        name: 'priority',
+        cases: {
+          low: 'read',
+        },
+      },
+      {
+        in: 'query',
+        name: 'view',
+        cases: {
+          summary: 'read',
+        },
+      },
+      'write',
+    ]);
+  });
+
+  it('names one parameter of the route, and values it can take', () => {
+    const route = {
+      method: 'put',
+      path: '/{id}',
+      params: z.object({
+        id: z.uuid(),
+        kind: z.enum(['a', 'b']),
+      }),
+      body: z.object({
+        priority: z.enum(['low', 'high']),
+        size: z.enum(['small', 'large']),
+        title: z.string(),
+        count: z.number(),
+      }),
+      description: 'Set',
+      policy: 'write',
+      handler: (c: Context) => c.body(null, 200),
+    } as const;
+
+    // Types only: defineRoute throws for a paramPolicy past them
+    const typesOnly = () => {
+      defineRoute({
+        ...route,
+        paramPolicy: {
+          params: {
+            kind: {
+              a: 'read',
+            },
+          },
+        },
+      });
+      defineRoute({
+        ...route,
+        paramPolicy: {
+          body: {
+            // @ts-expect-error: the body has no parameter called urgency
+            urgency: {
+              low: 'read',
+            },
+          },
+        },
+      });
+      defineRoute({
+        ...route,
+        paramPolicy: {
+          body: {
+            priority: {
+              // @ts-expect-error: priority can't be medium
+              medium: 'read',
+            },
+          },
+        },
+      });
+      defineRoute({
+        ...route,
+        paramPolicy: {
+          body: {
+            priority: {
+              // @ts-expect-error: a case is the registered policy
+              low: 'admin',
+            },
+          },
+        },
+      });
+      defineRoute({
+        ...route,
+        paramPolicy: {
+          body: {
+            // @ts-expect-error: title's values aren't string literals
+            title: {
+              low: 'read',
+            },
+          },
+        },
+      });
+      defineRoute({
+        ...route,
+        paramPolicy: {
+          body: {
+            // @ts-expect-error: nor are count's
+            count: {
+              1: 'read',
+            },
+          },
+        },
+      });
+      defineRoute({
+        ...route,
+        paramPolicy: {
+          body: {
+            priority: {
+              low: 'read',
+            },
+            // @ts-expect-error: one parameter, though size could be named alone
+            size: {
+              small: 'read',
+            },
+          },
+        },
+      });
+      defineRoute({
+        ...route,
+        // @ts-expect-error: in one location
+        paramPolicy: {
+          params: {
+            kind: {
+              a: 'read',
+            },
+          },
+          body: {
+            priority: {
+              low: 'read',
+            },
+          },
+        },
+      });
+      defineRoute({
+        ...route,
+        paramPolicy: {
+          // @ts-expect-error: the route takes no query
+          query: {
+            view: {
+              summary: 'read',
+            },
+          },
+        },
+      });
+    };
+
+    void typesOnly;
+  });
+
+  it('throws for a paramPolicy past its types', () => {
+    expect(() =>
+      defineRoute({
+        method: 'get',
+        path: '/',
+        description: 'Nothing',
+        policy: 'write',
+        paramPolicy: {
+          // @ts-expect-error: the route has no request schema to name
+          query: {
+            view: {
+              summary: 'read',
+            },
+          },
+        },
+        handler: (c) => c.body(null, 200),
+      }),
+    ).toThrow(
+      "paramPolicy names exactly one parameter of one of the route's request schemas",
+    );
   });
 });

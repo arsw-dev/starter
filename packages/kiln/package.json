@@ -1,6 +1,6 @@
 {
   "name": "@arsw/kiln",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "An API framework on Hono for Cloudflare Workers: routes that declare only their own responses, and Kiln the ones it causes, so the OpenAPI document is the contract, which its kiln command writes. Under /model, Drizzle tables on D1 and Zod schemas from one model",
   "license": "MIT",
   "repository": {

@@ -8,6 +8,13 @@
       "when": 1792464122075,
       "tag": "0000_todos-table",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1793333775463,
+      "tag": "0001_todos-completed-on",
+      "breakpoints": true
     }
   ]
 }

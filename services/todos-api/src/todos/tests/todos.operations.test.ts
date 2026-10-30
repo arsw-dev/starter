@@ -1,4 +1,5 @@
 import { env } from 'cloudflare:workers';
+import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import { beforeEach, describe, expect, it } from 'vite-plus/test';
 
@@ -30,5 +31,53 @@ describe('getAll', () => {
     const second = await insert('Second at noon', '2026-10-02T12:00:00.000Z');
 
     expect(await todosOps.getAll(db)).toEqual([second, first, oldest]);
+  });
+});
+
+describe('update', () => {
+  const today = new Date().toISOString().slice(0, 10);
+
+  it('completes a todo made done today, and keeps the day it was done', async () => {
+    const todo = await insert('Ship it', '2026-10-01T00:00:00.000Z');
+    const done = await todosOps.update(db, todo?.id ?? '', {
+      done: true,
+    });
+
+    await db
+      .update(todosModel.table)
+      .set({
+        completedOn: '2026-10-02',
+      })
+      .where(eq(todosModel.table.id, todo?.id ?? ''));
+
+    const again = await todosOps.update(db, todo?.id ?? '', {
+      done: true,
+    });
+    const renamed = await todosOps.update(db, todo?.id ?? '', {
+      title: 'Ship it now',
+    });
+
+    expect([
+      done?.completedOn,
+      again?.completedOn,
+      renamed?.completedOn,
+    ]).toEqual([today, '2026-10-02', '2026-10-02']);
+  });
+
+  it('clears the day a todo made not done was completed', async () => {
+    const todo = await insert('Ship it', '2026-10-01T00:00:00.000Z');
+
+    await todosOps.update(db, todo?.id ?? '', {
+      done: true,
+    });
+
+    const undone = await todosOps.update(db, todo?.id ?? '', {
+      done: false,
+    });
+
+    expect(undone).toMatchObject({
+      done: false,
+      completedOn: null,
+    });
   });
 });

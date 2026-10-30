@@ -624,6 +624,7 @@ describe('its types', () => {
   it('takes no policy when none is registered', () => {
     expectTypeOf<PolicyField<PolicyOf<{}>>>().toEqualTypeOf<{
       policy?: never;
+      paramPolicy?: never;
     }>();
 
     const given: PolicyField<PolicyOf<{}>> = {
