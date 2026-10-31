@@ -9,7 +9,7 @@ export {
   useFormField,
 } from './components/form-field.tsx';
 export { createFormFactory } from './factory/create-form-factory.tsx';
-export { zBoolean, zEnum, zNumber, zString } from './fields.ts';
+export { zBoolean, zEnum, zNumber, zString, zUnion } from './fields.ts';
 export { useFormMutation } from './use-form-mutation.ts';
 
 export type { ControlAria } from './components/form-field.tsx';

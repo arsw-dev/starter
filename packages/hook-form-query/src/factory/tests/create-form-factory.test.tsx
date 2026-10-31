@@ -12,6 +12,7 @@ import { filled, renderForm, schema } from '#/tests/render-form.tsx';
 import { useFormMutation } from '#/use-form-mutation.ts';
 
 import type { FieldPartProps } from '#/factory/create-form-factory.tsx';
+import type { Contact } from '#/tests/contact.ts';
 import type { Todo } from '#/tests/render-form.tsx';
 import type { ComponentProps } from 'react';
 import type { FieldPath, FieldValues } from 'react-hook-form';
@@ -143,6 +144,8 @@ const empty = {
 const onPriority = (value: 'low' | 'high' | '') => value;
 
 const onEstimate = (value: `${number}` | '') => value;
+
+const onMethod = (value: 'email' | 'phone' | 'none' | '') => value;
 
 // A wrapper generic over the form, whose name is no literal
 const GenericSelect = <TFormValues extends FieldValues>(props: {
@@ -432,6 +435,40 @@ describe('the types', () => {
     ];
 
     expect(elements).toHaveLength(6);
+  });
+
+  it('take a name on any branch of a union, and none on no branch', () => {
+    const elements = [
+      <FormInput<Contact> key="shared" name="name" label="Name" />,
+      <FormInput<Contact> key="email" name="email" label="Email" />,
+      <FormInput<Contact> key="phone" name="phone" label="Phone" />,
+      // @ts-expect-error on no branch
+      <FormInput<Contact> key="fax" name="fax" label="Fax" />,
+    ];
+
+    expect(elements).toHaveLength(4);
+  });
+
+  it("give a select of a union's discriminator its values", () => {
+    const elements = [
+      <FormSelect<Contact>
+        key="method"
+        name="method"
+        label="Method"
+        options={[]}
+        onValueChange={(value) => onMethod(value)}
+      />,
+      <FormSelect<Contact>
+        key="narrow"
+        name="method"
+        label="Method"
+        options={[]}
+        // @ts-expect-error a method can be 'none' too, or empty
+        onValueChange={(value: 'email' | 'phone') => value}
+      />,
+    ];
+
+    expect(elements).toHaveLength(2);
   });
 
   it("take a select's name without a literal when it has no callback", () => {

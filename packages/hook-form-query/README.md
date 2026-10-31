@@ -56,6 +56,71 @@ values. Each also takes its own kind of value, as a server's values hold it. A
 create and an update have separate schemas: the same empty field means "use the
 default" in one and "clear it" in the other.
 
+### `zUnion`
+
+When what a form requires depends on one of its fields, `zUnion` builds a
+discriminated union, so what it parses to is what an API taking that union
+expects:
+
+```ts
+import { zString, zUnion } from '@arsw/hook-form-query';
+
+import type { z } from 'zod';
+
+const METHODS = ['email', 'phone', 'none'] as const;
+
+const contactSchema = zUnion({
+  on: 'method',
+  values: METHODS,
+  fields: {
+    name: zString({
+      type: 'required',
+    }),
+  },
+  branches: {
+    email: {
+      email: zString({
+        type: 'required',
+        refine: (string, zod) => string.check(zod.email()),
+      }),
+    },
+    phone: {
+      phone: zString({
+        type: 'required',
+      }),
+    },
+  },
+});
+
+type Contact = z.output<typeof contactSchema>;
+```
+
+- `on`: the field that decides, which holds one of `values`. Empty, it's an
+  error ("Required"); any other value keeps Zod's message.
+- `values`: what it can hold. Each is a branch, and a list an app already has
+  works (`Status[]`).
+- `fields`: the fields every branch has.
+- `branches`: each value's own fields, optional, as is an entry for a value with
+  nothing extra. A key that isn't one of `values` doesn't compile. A branch's
+  field replaces a shared one of the same name; `on` can't be replaced.
+
+Only the chosen branch is validated, and other branches' fields are stripped: a
+required field on another branch doesn't block the submit, and what was typed
+there isn't sent.
+
+The same list can give the select its options, so they can't disagree:
+
+```ts
+const methods = METHODS.map((value) => ({
+  value,
+  label: labels[value],
+}));
+```
+
+`on` is typed as its values alone, so `defaultValues` leaves it out until it's
+chosen, rather than giving it `''`. A select shows an empty field as its
+`placeholder`, and reports `''` when it's cleared.
+
 ## `useFormMutation`
 
 ```tsx
@@ -70,10 +135,12 @@ const { form, formId, onSubmit, isSubmitting } = useFormMutation({
 ```
 
 It submits what the schema parses to through the mutation. Errors show on
-submit, then as each field is left.
+submit, then as each field is left. A create's schema can be a union, from
+`zUnion` or a hand-written `z.discriminatedUnion`.
 
 An update form takes the server's `values` (`undefined` while they load) and
-sends only the fields that changed, comparing both sides once parsed:
+sends only the fields that changed, comparing both sides once parsed. Its schema
+stays an object, because it compares field by field:
 
 ```tsx
 const todo = useQuery(todosApi.get({ id }));
