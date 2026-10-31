@@ -3,15 +3,22 @@ import { buildPatch } from './patch.ts';
 import type { FieldsSchema } from './patch.ts';
 
 type Submit<TOutput> = {
-  schema: FieldsSchema<TOutput>;
-  // What the schema parsed the form to, and the form's values as they are
+  // What the schema parsed the form to
   data: TOutput;
-  current: Record<string, unknown>;
-  // An update's: the server's values, undefined while they load
-  update: boolean;
-  server: Record<string, unknown> | undefined;
   toVariables: ((sent: unknown) => unknown) | undefined;
-};
+} & (
+  | {
+      update: false;
+    }
+  | {
+      update: true;
+      schema: FieldsSchema<unknown>;
+      // The form's values as they are
+      current: Record<string, unknown>;
+      // The server's values, undefined while they load
+      server: Record<string, unknown> | undefined;
+    }
+);
 
 type Submission =
   | {
@@ -26,30 +33,24 @@ type Submission =
 // update, only the fields that changed from the server's values, nothing when
 // none did, and nothing before the server's values arrive. Through toVariables
 // when there is one
-const toSubmission = <TOutput>({
-  schema,
-  data,
-  current,
-  update,
-  server,
-  toVariables,
-}: Submit<TOutput>): Submission => {
+const toSubmission = <TOutput>(submit: Submit<TOutput>): Submission => {
+  const { toVariables } = submit;
   const send = (sent: unknown) => ({
     status: 'send' as const,
     variables: toVariables ? toVariables(sent) : sent,
   });
 
-  if (!update) {
-    return send(data);
+  if (!submit.update) {
+    return send(submit.data);
   }
 
-  if (server === undefined) {
+  if (submit.server === undefined) {
     return {
       status: 'loading',
     };
   }
 
-  const patch = buildPatch(schema, server, current);
+  const patch = buildPatch(submit.schema, submit.server, submit.current);
 
   if (Object.keys(patch).length === 0) {
     return {

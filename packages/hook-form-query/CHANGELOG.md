@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.3
+
+`zUnion` builds a form schema whose fields depend on one of them: one list of
+values, the fields every branch shares, and each branch's own. A create form's
+schema can be a union, from `zUnion` or a hand-written `z.discriminatedUnion`,
+so what it parses to is what the mutation takes, with no `toVariables`. An
+update's is still an object, because it compares field by field.
+
 ## 0.2.2
 
 A select takes `onValueChange`, called with the value each time the user changes

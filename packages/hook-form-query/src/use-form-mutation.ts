@@ -16,9 +16,9 @@ import type {
 } from 'react-hook-form';
 import type { z } from 'zod';
 
-// A form's schema: an object of fields, so each can be parsed on its own
-type FormSchema = FieldsSchema<FieldValues> &
-  z.ZodType<FieldValues, FieldValues>;
+// A form's schema: anything that parses a form's values to an object, a union
+// of objects included. Only an update needs the fields themselves
+type FormSchema = z.ZodType<FieldValues, FieldValues>;
 
 // What the form holds, and what it sends once the schema has parsed it
 type Input<TSchema extends FormSchema> = z.input<TSchema>;
@@ -72,6 +72,8 @@ type UpdateOptions<
 > = Shared<TSchema> &
   Sending<Partial<Output<TSchema>>, TData, TVariables> & {
     update: true;
+    // Compared field by field, so it has to be an object of them
+    schema: FieldsSchema<FieldValues>;
     // A submit with nothing to send
     onUnchanged?: () => void;
   };
@@ -129,21 +131,30 @@ const useFormMutation = <TSchema extends FormSchema, TData, TVariables = never>(
   // differ
   const isDirty = options.update
     ? values !== undefined &&
-      Object.keys(buildPatch(schema, values, current)).length > 0
+      Object.keys(buildPatch(options.schema, values, current)).length > 0
     : form.formState.isDirty;
 
   const submit = form.handleSubmit((data) => {
-    const submission = toSubmission({
-      schema,
-      data,
-      current: form.getValues(),
-      update: options.update === true,
-      server: values,
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Sending pairs toVariables with what this form sends: its output for a create, part of it for an update
-      toVariables: options.toVariables as
-        | ((sent: unknown) => unknown)
-        | undefined,
-    });
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Sending pairs toVariables with what this form sends: its output for a create, part of it for an update
+    const toVariables = options.toVariables as
+      | ((sent: unknown) => unknown)
+      | undefined;
+    const submission = toSubmission(
+      options.update
+        ? {
+            update: true,
+            schema: options.schema,
+            data,
+            current: form.getValues(),
+            server: values,
+            toVariables,
+          }
+        : {
+            update: false,
+            data,
+            toVariables,
+          },
+    );
 
     if (submission.status === 'unchanged' && options.update) {
       options.onUnchanged?.();
