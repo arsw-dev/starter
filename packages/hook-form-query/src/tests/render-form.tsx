@@ -118,12 +118,17 @@ const renderForm = (
 type OwnOptions = Pick<
   UseFormProps<z.input<typeof schema>>,
   'mode' | 'disabled' | 'defaultValues'
->;
+> & {
+  isLoading?: boolean;
+};
 
 // The same fields in a form of the test's own, for what useFormMutation
-// doesn't set: another mode, React Hook Form's own disabled. Filled unless
-// given defaults of its own
-const renderOwnForm = (fields: ReactNode, options: OwnOptions = {}) => {
+// doesn't set: another mode, React Hook Form's own disabled, a form that stays
+// loading. Filled unless given defaults of its own
+const renderOwnForm = (
+  fields: ReactNode,
+  { isLoading = false, ...options }: OwnOptions = {},
+) => {
   const user = userEvent.setup();
 
   const Harness = () => {
@@ -134,7 +139,11 @@ const renderOwnForm = (fields: ReactNode, options: OwnOptions = {}) => {
     });
 
     return (
-      <Form form={form} onSubmit={form.handleSubmit(() => undefined)}>
+      <Form
+        form={form}
+        onSubmit={form.handleSubmit(() => undefined)}
+        isLoading={isLoading}
+      >
         {fields}
       </Form>
     );

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.2
+
+A select takes `onValueChange`, called with the value each time the user changes
+it, on both engines. The field's `name` types the value: its options as text,
+and `''` when it's cleared. A change a loading form ignores isn't reported.
+
 ## 0.2.1
 
 Fixed: the Radix engine gives a select's `root` its `disabled` only when it's

@@ -1,5 +1,7 @@
 import { useRef } from 'react';
 
+import { useFormActivity } from '#/components/form.tsx';
+
 import type { ControlAria } from '#/components/form-field.tsx';
 import type { ControlArgs, Option } from '#/engines/control.ts';
 import type { ComponentType, ReactNode } from 'react';
@@ -43,6 +45,8 @@ type RadixSelectSpec = {
     options: readonly Option[];
     // Shown while the field is empty, and the label of the item that clears it
     placeholder?: string | undefined;
+    // The factory narrows the value by the field's name
+    onValueChange?: ((value: string) => void) | undefined;
   };
 };
 
@@ -70,7 +74,8 @@ const RadixSelect = ({
     item: Item,
   } = parts;
   const { ref, name, value, disabled, onChange, onBlur } = field;
-  const { options, placeholder, ...rest } = props;
+  const { options, placeholder, onValueChange, ...rest } = props;
+  const { isLoading } = useFormActivity();
   const isOpen = useRef(false);
   // Given only when it's true: Radix's Select.Root typed it as boolean alone
   // before radix-ui 1.8.0, which refuses an undefined under
@@ -89,7 +94,14 @@ const RadixSelect = ({
       {...disabledProp}
       onValueChange={(picked) => {
         if (picked !== '') {
-          onChange(picked === cleared ? '' : picked);
+          const next = picked === cleared ? '' : picked;
+
+          onChange(next);
+
+          // A loading form ignored the change, so nothing changed to report
+          if (!isLoading) {
+            onValueChange?.(next);
+          }
         }
       }}
       onOpenChange={(open) => {
