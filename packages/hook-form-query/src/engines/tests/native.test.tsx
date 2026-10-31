@@ -1,5 +1,6 @@
 import { screen, waitFor } from '@testing-library/react';
-import { describe, expect, it } from 'vite-plus/test';
+import { useFormContext } from 'react-hook-form';
+import { describe, expect, it, vi } from 'vite-plus/test';
 
 import { createFormFactory } from '#/factory/create-form-factory.tsx';
 import {
@@ -204,6 +205,79 @@ describe('a native select', () => {
         filled,
       ]);
     });
+  });
+
+  it('reports the option picked, and the empty one as empty', async () => {
+    const onValueChange = vi.fn();
+    const { user } = renderForm(
+      <FormSelect<Todo>
+        name="priority"
+        label="Priority"
+        options={priorities}
+        onValueChange={onValueChange}
+      />,
+    );
+    const select = screen.getByRole('combobox', {
+      name: 'Priority',
+    });
+
+    await user.selectOptions(select, 'high');
+    await user.selectOptions(select, '');
+
+    expect(onValueChange.mock.calls).toEqual([['high'], ['']]);
+  });
+
+  it('reports a value the form already holds', async () => {
+    const held: unknown[] = [];
+
+    const Holding = () => {
+      const form = useFormContext<Todo>();
+
+      return (
+        <FormSelect<Todo>
+          name="priority"
+          label="Priority"
+          options={priorities}
+          onValueChange={() => {
+            held.push(form.getValues('priority'));
+          }}
+        />
+      );
+    };
+
+    const { user } = renderForm(<Holding />);
+
+    await user.selectOptions(
+      screen.getByRole('combobox', {
+        name: 'Priority',
+      }),
+      'high',
+    );
+
+    expect(held).toEqual(['high']);
+  });
+
+  it('reports nothing of what a loading form ignores', async () => {
+    const onValueChange = vi.fn();
+    const { user } = renderOwnForm(
+      <FormSelect<Todo>
+        name="priority"
+        label="Priority"
+        options={priorities}
+        onValueChange={onValueChange}
+      />,
+      {
+        isLoading: true,
+      },
+    );
+    const select = screen.getByRole('combobox', {
+      name: 'Priority',
+    });
+
+    await user.selectOptions(select, 'high');
+
+    expect(select).toHaveProperty('value', '');
+    expect(onValueChange).not.toHaveBeenCalled();
   });
 });
 

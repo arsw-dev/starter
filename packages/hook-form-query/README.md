@@ -182,6 +182,29 @@ fields: leaving the type out doesn't compile. Every field takes a `label`, a
 included, go to the control's main part: the input, the select's trigger, the
 radio group's root.
 
+A select also takes `onValueChange`, called with the value each time the user
+changes it, once the form holds it:
+
+```tsx
+<FormSelect<CreateTodo>
+  name="priority"
+  label="Priority"
+  placeholder="Default"
+  options={priorities}
+  onValueChange={(value) => {
+    // 'low' | 'medium' | 'high' | ''
+  }}
+/>
+```
+
+`name` types the value, so there's nothing to annotate. It's what the option
+gave, before the schema parses it: an option's value, or `''` when the select is
+cleared, so `''` is in the type of a required field too. A field that isn't text
+reads as its text (`` `${number}` ``, `'true' | 'false'`), and one whose name
+isn't a single literal has to annotate it as `string`. It's for the user's
+changes: `form.reset()` and `form.setValue()` don't call it, nor does a change a
+loading form ignores.
+
 ### Engines and controls
 
 The engine says how each control talks to the form: a native element's events,

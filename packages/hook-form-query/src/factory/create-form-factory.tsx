@@ -13,7 +13,7 @@ import type { ControlAria } from '#/components/form-field.tsx';
 import type { Control, ControlArgs, ControlSpec } from '#/engines/control.ts';
 import type { Engines } from '#/engines/engines.ts';
 import type { ComponentType, ReactNode } from 'react';
-import type { FieldPath, FieldValues } from 'react-hook-form';
+import type { FieldPath, FieldPathValue, FieldValues } from 'react-hook-form';
 
 type Engine = keyof Engines;
 
@@ -92,12 +92,47 @@ type Passthrough<TSpec extends ControlSpec, TParts> = Omit<
   | 'defaultChecked'
 >;
 
+// What a change reports is the option's value before the schema parses it:
+// always text, and '' from the empty option, whatever the form's field holds
+type Reported<TValue> = TValue extends string | number | boolean
+  ? `${TValue}` | ''
+  : string;
+
+// One member per name, so a field's name decides what its callback is given:
+// TypeScript can't infer a second type argument once the form's is written. A
+// field with no callback needs no literal name, as a wrapper generic over the
+// form has none, and with no form type at all there'd be no members
+type ValueChange<TFormValues extends FieldValues> =
+  | {
+      onValueChange?: undefined;
+    }
+  | {
+      [TName in FieldPath<TFormValues>]: {
+        name: NoInfer<TName>;
+        onValueChange?:
+          | ((
+              value: Reported<NonNullable<FieldPathValue<TFormValues, TName>>>,
+            ) => void)
+          | undefined;
+      };
+    }[FieldPath<TFormValues>];
+
+// A control whose spec takes onValueChange has it typed by the field's name
+type OwnProps<
+  TSpec extends ControlSpec,
+  TFormValues extends FieldValues,
+> = 'onValueChange' extends keyof TSpec['props']
+  ? Omit<TSpec['props'], 'onValueChange'> & ValueChange<TFormValues>
+  : TSpec['props'];
+
 // TFormValues has no usable default: without the form's type, no name is one
 // of its fields, so leaving it out doesn't compile
 type FieldComponent<TSpec extends ControlSpec, TParts> = <
   TFormValues extends FieldValues = never,
 >(
-  props: FieldProps<TFormValues> & TSpec['props'] & Passthrough<TSpec, TParts>,
+  props: FieldProps<TFormValues> &
+    OwnProps<TSpec, TFormValues> &
+    Passthrough<TSpec, TParts>,
 ) => ReactNode;
 
 type BodyProps = {

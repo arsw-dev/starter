@@ -1,6 +1,7 @@
 import { screen, waitFor } from '@testing-library/react';
 import { Label, RadioGroup, Select, Switch } from 'radix-ui';
-import { beforeEach, describe, expect, it } from 'vite-plus/test';
+import { useFormContext } from 'react-hook-form';
+import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 
 import { createFormFactory } from '#/factory/create-form-factory.tsx';
 import { RadixCheckbox, SelectContent, SelectItem } from '#/tests/parts.tsx';
@@ -180,6 +181,110 @@ describe('a Radix select', () => {
         },
       ]);
     });
+  });
+
+  it('reports the option picked, and its placeholder as empty', async () => {
+    const onValueChange = vi.fn();
+    const { user } = renderForm(
+      <FormSelect<Todo>
+        name="priority"
+        label="Priority"
+        placeholder="Default"
+        options={priorities}
+        onValueChange={onValueChange}
+      />,
+    );
+
+    await user.click(trigger('Priority'));
+    await user.click(
+      await screen.findByRole('option', {
+        name: 'High',
+      }),
+    );
+    await user.click(trigger('Priority'));
+    await user.click(
+      await screen.findByRole('option', {
+        name: 'Default',
+      }),
+    );
+
+    expect(onValueChange.mock.calls).toEqual([['high'], ['']]);
+  });
+
+  it('reports a value the form already holds', async () => {
+    const held: unknown[] = [];
+
+    const Holding = () => {
+      const form = useFormContext<Todo>();
+
+      return (
+        <FormSelect<Todo>
+          name="priority"
+          label="Priority"
+          options={priorities}
+          onValueChange={() => {
+            held.push(form.getValues('priority'));
+          }}
+        />
+      );
+    };
+
+    const { user } = renderForm(<Holding />);
+
+    await user.click(trigger('Priority'));
+    await user.click(
+      await screen.findByRole('option', {
+        name: 'High',
+      }),
+    );
+
+    expect(held).toEqual(['high']);
+  });
+
+  it("reports nothing of the native form's reset", async () => {
+    const onValueChange = vi.fn();
+    const { user } = renderForm(
+      <FormSelect<Todo>
+        name="priority"
+        label="Priority"
+        options={priorities}
+        onValueChange={onValueChange}
+      />,
+    );
+
+    await user.click(trigger('Priority'));
+    await user.click(
+      await screen.findByRole('option', {
+        name: 'High',
+      }),
+    );
+    trigger('Priority').closest('form')?.reset();
+
+    expect(onValueChange.mock.calls).toEqual([['high']]);
+  });
+
+  it('reports nothing of what a loading form ignores', async () => {
+    const onValueChange = vi.fn();
+    const { user } = renderOwnForm(
+      <FormSelect<Todo>
+        name="priority"
+        label="Priority"
+        options={priorities}
+        onValueChange={onValueChange}
+      />,
+      {
+        isLoading: true,
+      },
+    );
+
+    await user.click(trigger('Priority'));
+    await user.click(
+      await screen.findByRole('option', {
+        name: 'High',
+      }),
+    );
+
+    expect(onValueChange).not.toHaveBeenCalled();
   });
 
   it('takes the focus on an error, and checks again once picked', async () => {
