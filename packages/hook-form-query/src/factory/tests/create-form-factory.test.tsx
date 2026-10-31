@@ -14,6 +14,7 @@ import { useFormMutation } from '#/use-form-mutation.ts';
 import type { FieldPartProps } from '#/factory/create-form-factory.tsx';
 import type { Todo } from '#/tests/render-form.tsx';
 import type { ComponentProps } from 'react';
+import type { FieldPath, FieldValues } from 'react-hook-form';
 import type { z } from 'zod';
 
 // A part whose value can't be a string, as a text input's can
@@ -137,6 +138,16 @@ const empty = {
   ...filled,
   title: '',
 };
+
+// Each takes only the values its field's select can report
+const onPriority = (value: 'low' | 'high' | '') => value;
+
+const onEstimate = (value: `${number}` | '') => value;
+
+// A wrapper generic over the form, whose name is no literal
+const GenericSelect = <TFormValues extends FieldValues>(props: {
+  name: FieldPath<TFormValues>;
+}) => <FormSelect<TFormValues> name={props.name} label="Pick" options={[]} />;
 
 describe('a field', () => {
   it('is named by its label', () => {
@@ -370,6 +381,67 @@ describe('the types', () => {
     ];
 
     expect(elements).toHaveLength(4);
+  });
+
+  it("give a select's callback the values of the field it's named for", () => {
+    const elements = [
+      <FormSelect<Todo>
+        key="priority"
+        name="priority"
+        label="Priority"
+        options={[]}
+        onValueChange={(value) => onPriority(value)}
+      />,
+      <FormSelect<Todo>
+        key="estimate"
+        name="estimate"
+        label="Estimate"
+        options={[]}
+        onValueChange={(value) => onEstimate(value)}
+      />,
+      <FormSelect<Todo>
+        key="string"
+        name="priority"
+        label="Priority"
+        options={[]}
+        onValueChange={(value: string) => value}
+      />,
+      <FormSelect<Todo>
+        key="other"
+        name="size"
+        label="Size"
+        options={[]}
+        // @ts-expect-error size's values aren't priority's
+        onValueChange={(value) => onPriority(value)}
+      />,
+      <FormSelect<Todo>
+        key="empty"
+        name="priority"
+        label="Priority"
+        options={[]}
+        // @ts-expect-error the empty option reports ''
+        onValueChange={(value: 'low' | 'high') => value}
+      />,
+      <FormInput<Todo>
+        key="input"
+        name="title"
+        label="Title"
+        // @ts-expect-error only a select reports its value
+        onValueChange={() => undefined}
+      />,
+    ];
+
+    expect(elements).toHaveLength(6);
+  });
+
+  it("take a select's name without a literal when it has no callback", () => {
+    const name = 'priority' as FieldPath<Todo>;
+    const elements = [
+      <FormSelect<Todo> key="any" name={name} label="Any" options={[]} />,
+      <GenericSelect<Todo> key="generic" name="priority" />,
+    ];
+
+    expect(elements).toHaveLength(2);
   });
 
   it('take only the controls an engine has, with the parts it needs', () => {

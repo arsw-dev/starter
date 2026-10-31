@@ -1,3 +1,5 @@
+import { useFormActivity } from '#/components/form.tsx';
+
 import type { ControlAria } from '#/components/form-field.tsx';
 import type { ControlArgs, Option } from '#/engines/control.ts';
 import type { ChangeEventHandler, ComponentType, ReactNode } from 'react';
@@ -26,6 +28,8 @@ type NativeSelectSpec = {
     options: readonly Option[];
     // The empty option's label
     placeholder?: string | undefined;
+    // The factory narrows the value by the field's name
+    onValueChange?: ((value: string) => void) | undefined;
   };
 };
 
@@ -40,7 +44,8 @@ const NativeSelect = ({
 }: ControlArgs<NativeSelectSpec>) => {
   const { select: Select } = parts;
   const { ref, name, value, disabled, onChange, onBlur } = field;
-  const { options, placeholder, ...rest } = props;
+  const { options, placeholder, onValueChange, ...rest } = props;
+  const { isLoading } = useFormActivity();
 
   return (
     <Select
@@ -50,7 +55,14 @@ const NativeSelect = ({
       name={name}
       value={value ?? ''}
       disabled={disabled || rest.disabled}
-      onChange={onChange}
+      onChange={(event) => {
+        onChange(event);
+
+        // A loading form ignored the change, so nothing changed to report
+        if (!isLoading) {
+          onValueChange?.(event.target.value);
+        }
+      }}
       onBlur={onBlur}
     >
       <option value="">{placeholder}</option>
