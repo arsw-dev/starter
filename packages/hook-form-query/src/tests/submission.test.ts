@@ -19,18 +19,29 @@ const server = {
   estimate: 3,
 };
 
-const submit = (overrides: Partial<Parameters<typeof toSubmission>[0]>) =>
+const data = {
+  title: 'Buy oat milk',
+  estimate: null,
+};
+
+const submitUpdate = (
+  overrides: Partial<
+    Extract<
+      Parameters<typeof toSubmission>[0],
+      {
+        update: true;
+      }
+    >
+  >,
+) =>
   toSubmission({
     schema,
-    data: {
-      title: 'Buy oat milk',
-      estimate: null,
-    },
+    data,
     current: {
       title: 'Buy oat milk',
       estimate: '',
     },
-    update: false,
+    update: true,
     server: undefined,
     toVariables: undefined,
     ...overrides,
@@ -38,7 +49,13 @@ const submit = (overrides: Partial<Parameters<typeof toSubmission>[0]>) =>
 
 describe('toSubmission', () => {
   it("sends a create's parsed form whole", () => {
-    expect(submit({})).toStrictEqual({
+    expect(
+      toSubmission({
+        data,
+        update: false,
+        toVariables: undefined,
+      }),
+    ).toStrictEqual({
       status: 'send',
       variables: {
         title: 'Buy oat milk',
@@ -49,8 +66,7 @@ describe('toSubmission', () => {
 
   it("sends only an update's changes", () => {
     expect(
-      submit({
-        update: true,
+      submitUpdate({
         server,
       }),
     ).toStrictEqual({
@@ -62,8 +78,7 @@ describe('toSubmission', () => {
     });
 
     expect(
-      submit({
-        update: true,
+      submitUpdate({
         server,
         current: {
           title: 'Buy oat milk',
@@ -80,8 +95,7 @@ describe('toSubmission', () => {
 
   it('sends nothing for an update that changed nothing', () => {
     expect(
-      submit({
-        update: true,
+      submitUpdate({
         server,
         current: {
           title: ' Buy milk ',
@@ -94,19 +108,14 @@ describe('toSubmission', () => {
   });
 
   it("sends nothing before an update's server values arrive", () => {
-    expect(
-      submit({
-        update: true,
-      }),
-    ).toStrictEqual({
+    expect(submitUpdate({})).toStrictEqual({
       status: 'loading',
     });
   });
 
   it('sends what toVariables makes of it', () => {
     expect(
-      submit({
-        update: true,
+      submitUpdate({
         server,
         toVariables: (patch) => ({
           id: server.id,

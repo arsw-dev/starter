@@ -35,6 +35,66 @@ type EnumOptions<
   values: TValues;
 };
 
+// Fields as z.object takes them
+type Fields = z.ZodRawShape;
+
+type UnionOptions<
+  TOn extends string,
+  TValue extends string,
+  TFields extends Fields,
+  TBranches extends Partial<Record<TValue, Fields>>,
+> = {
+  on: TOn;
+  values: readonly TValue[];
+  fields: TFields;
+  // A key that isn't a value becomes never: the constraint alone would let one
+  // through beside the others
+  branches?: TBranches & Record<Exclude<keyof TBranches, TValue>, never>;
+};
+
+type BranchOf<TBranches, TValue> = TValue extends keyof TBranches
+  ? TBranches[TValue]
+  : object;
+
+// What's built at runtime: a branch's field replaces a shared one of the same
+// name, which an intersection would turn into both, and nothing replaces the
+// discriminator
+type BranchSchema<
+  TOn extends string,
+  TValue extends string,
+  TFields,
+  TBranch,
+> = z.ZodObject<
+  Omit<TFields, keyof TBranch | TOn> &
+    Omit<TBranch, TOn> &
+    Record<TOn, z.ZodLiteral<TValue>>
+>;
+
+// One member per value, so the discriminator narrows what a form parses to
+type BranchSchemas<
+  TOn extends string,
+  TValue extends string,
+  TFields,
+  TBranches,
+> = {
+  [TChosen in TValue]: BranchSchema<
+    TOn,
+    TChosen,
+    TFields,
+    BranchOf<TBranches, TChosen>
+  >;
+}[TValue];
+
+type UnionSchema<
+  TOn extends string,
+  TValue extends string,
+  TFields,
+  TBranches,
+> = z.ZodType<
+  z.output<BranchSchemas<TOn, TValue, TFields, TBranches>>,
+  z.input<BranchSchemas<TOn, TValue, TFields, TBranches>>
+>;
+
 type Issue = {
   input: unknown;
 };
@@ -50,6 +110,9 @@ const empties = {
 // Whitespace, '', null and undefined all count as empty
 const isEmpty = (value: unknown) =>
   value == null || (typeof value === 'string' && value.trim() === '');
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
 
 // What a field takes: text from a form, or its own kind of value, as a
 // server's values hold it
@@ -74,6 +137,11 @@ const required = (issue: Issue) =>
 
 // NaN reaches the check as a number, so it gets its own message
 const numberError = (issue: Issue) => required(issue) ?? 'Must be a number';
+
+// A discriminator's error is raised on the union, so its input is the whole
+// object, not the discriminator's value. Any other value keeps Zod's message
+const discriminatorError = (on: string) => (issue: Issue) =>
+  isRecord(issue.input) && isEmpty(issue.input[on]) ? 'Required' : undefined;
 
 const keep = (value: string) => value;
 
@@ -182,4 +250,41 @@ const zEnum = <
   return z.preprocess((value: Text) => emptyOr(type, keep, value), enums[type]);
 };
 
-export { zBoolean, zEnum, zNumber, zString };
+// A form whose fields depend on one of them: one object per value, of the shared
+// fields, the value's own and the value itself. The discriminator is a literal,
+// not a zEnum: Zod can't discriminate on a preprocessed field
+const zUnion = <
+  TOn extends string,
+  const TValue extends string,
+  TFields extends Fields,
+  TBranches extends Partial<Record<TValue, Fields>> = object,
+>({
+  on,
+  values,
+  fields,
+  branches,
+}: UnionOptions<TOn, TValue, TFields, TBranches>): UnionSchema<
+  TOn,
+  TValue,
+  TFields,
+  TBranches
+> => {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- values.map can't keep each value with its branch, or show there's at least one
+  const options = values.map((value) => {
+    const branch: Fields | undefined = branches?.[value];
+
+    return z.object({
+      ...fields,
+      ...branch,
+      [on]: z.literal(value),
+    });
+  }) as unknown as [
+    UnionSchema<TOn, TValue, TFields, TBranches> & z.core.$ZodTypeDiscriminable,
+  ];
+
+  return z.discriminatedUnion(on, options, {
+    error: discriminatorError(on),
+  });
+};
+
+export { zBoolean, zEnum, zNumber, zString, zUnion };
